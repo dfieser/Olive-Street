@@ -1,0 +1,25 @@
+{
+  "_comment": "Olive Street Band — workspace config for SVG-based logo and asset generation.",
+
+  "band_name": "OLIVE STREET BAND",
+
+  "colors": {
+    "olive_green": "#6B7A3A",
+    "tan":         "#DDB892",
+    "cream":       "#F5F0E1"
+  },
+
+  "default_font": "Georgia",
+  "_font_note": "Font must be installed on the system. Place licensed fonts in assets/fonts/ and install system-wide, then pass via --font.",
+
+  "default_scheme": "dark",
+  "default_bg": "geometric",
+
+  "logo_styles":    ["wordmark", "stacked", "emblem", "badge", "block"],
+  "color_schemes":  ["dark", "light", "tan", "mono"],
+  "bg_patterns":    ["geometric", "halftone", "lines", "concentric", "minimal"],
+
+  "canvas_size": 1536,
+
+  "social_platforms": ["instagram", "twitter", "facebook"]
+}

@@ -1,0 +1,36 @@
+# .gitignore — Olive Street Scripts
+
+# Secrets
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+env/
+venv/
+
+# Generated outputs (tracked separately or excluded from version control)
+output/logos/*
+output/album_art/*
+output/social/**/*
+output/archive/*
+
+# Keep the output folder structure
+!output/logos/.gitkeep
+!output/album_art/.gitkeep
+!output/social/instagram/.gitkeep
+!output/social/twitter/.gitkeep
+!output/social/facebook/.gitkeep
+!output/archive/.gitkeep
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editors
+.vscode/
+*.swp
+*.swo

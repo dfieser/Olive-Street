@@ -1,0 +1,38 @@
+{
+  "_comment": "Official Olive Street Band color palette. All digital values are sRGB. Max 3 colors per design.",
+  "palette": [
+    {
+      "name": "Olive Green",
+      "role": "primary",
+      "hex": "#6B7A3A",
+      "rgb": [107, 122, 58],
+      "usage": "Primary brand color. Dark backgrounds, main fill on light versions."
+    },
+    {
+      "name": "Tan",
+      "role": "secondary",
+      "hex": "#DDB892",
+      "rgb": [221, 184, 146],
+      "usage": "Secondary color. Text and design elements on dark backgrounds."
+    },
+    {
+      "name": "Cream",
+      "role": "accent",
+      "hex": "#F5F0E1",
+      "rgb": [245, 240, 225],
+      "usage": "Accent, highlights, and contrast. Light background on reversed designs."
+    }
+  ],
+  "rules": [
+    "Max 3 colors in any single design",
+    "Do not introduce new colors without explicit approval",
+    "Dark scheme: olive green background, tan + cream for text/elements",
+    "Light/reversed scheme: cream background, olive green text",
+    "No gradients on the band name text itself"
+  ],
+  "forbidden": [
+    "Any color outside the 3-color palette",
+    "Neon or fluorescent colors",
+    "Pure white (#FFFFFF) or pure black (#000000)"
+  ]
+}

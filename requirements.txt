@@ -1,0 +1,6 @@
+svgwrite>=1.4.3
+imagehash>=4.3.1     # organize.py duplicates command
+Pillow>=10.0.0       # organize.py duplicates command
+
+# Optional — only needed for --png export in generate_logo.py / generate_asset.py
+# cairosvg>=2.7.0    # requires Cairo system library; see README for install notes
