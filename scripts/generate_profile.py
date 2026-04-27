@@ -141,17 +141,17 @@ def draw_stack(dwg: svgwrite.Drawing, c: dict) -> None:
     g.add(dwg.circle(center=(CX, CY), r=R - 15,
                      fill="none", stroke=c["ac"], stroke_width=7))
 
-    # Vertical layout constants
-    fs_outer  = 150     # OLIVE and BAND
-    fs_street = 168     # STREET (longest word — slightly bigger)
-    rule_w    = 390
+    # Vertical layout — generous gaps so nothing touches
+    fs_outer  = 130    # OLIVE and BAND
+    fs_street = 148    # STREET
+    rule_w    = 400
     rule_h    = 5
-    diam      = 10      # diamond half-size
-    y_olive   = CY - 160
-    y_r1      = CY - 84
-    y_street  = CY + 4
-    y_r2      = CY + 92
-    y_band    = CY + 168
+    diam      = 10
+    y_olive   = CY - 190
+    y_r1      = CY - 100
+    y_street  = CY
+    y_r2      = CY + 100
+    y_band    = CY + 190
 
     # Accent rules + end diamonds
     for ry in (y_r1, y_r2):
@@ -186,8 +186,11 @@ def draw_arc(dwg: svgwrite.Drawing, c: dict) -> None:
     g.add(dwg.circle(center=(CX, CY), r=R - 46,
                      fill="none", stroke=c["ac"], stroke_width=2))
 
-    # Tick marks (60 marks, every 6°)
+    # Tick marks — bottom 240° only; leave top 120° clear for arc text
+    # In loop: i=0 is top. Skip i=0..9 and i=51..59 (±60° from top).
     for i in range(60):
+        if i < 10 or i > 50:
+            continue
         major  = (i % 5 == 0)
         r_out  = R - 17
         r_in   = r_out - (18 if major else 9)
@@ -205,7 +208,7 @@ def draw_arc(dwg: svgwrite.Drawing, c: dict) -> None:
     gap     = 14
     total_w = n_bars * bar_w + (n_bars - 1) * gap
     bot_y   = CY + 255
-    max_h   = 248
+    max_h   = 240
     for i, h in enumerate(bar_heights):
         bh = int(max_h * h)
         bx = CX - total_w / 2 + i * (bar_w + gap)
@@ -213,9 +216,9 @@ def draw_arc(dwg: svgwrite.Drawing, c: dict) -> None:
         g.add(dwg.rect(insert=(bx, by),      size=(bar_w, bh), fill=c["fg"], rx=4))
         g.add(dwg.rect(insert=(bx, by - 11), size=(bar_w, 11), fill=c["ac"], rx=3))
 
-    # Band name arced along the top
-    _arc_chars(g, dwg, BAND_NAME, r=468, centre_deg=0,
-               font_size=82, fill=c["fg"])
+    # Band name arced along the top — r=400 keeps text clear of the inner ring (R-46=494)
+    _arc_chars(g, dwg, BAND_NAME, r=400, centre_deg=0,
+               font_size=70, fill=c["fg"])
 
     # Bottom ornament dots
     _text(g, dwg, "◆  ◆  ◆", CX, CY + 318, 30, c["ac"])
@@ -231,8 +234,8 @@ def draw_stripe(dwg: svgwrite.Drawing, c: dict) -> None:
     g   = dwg.add(dwg.g(clip_path=f"url(#{cid})"))
     _bg(g, dwg, c["bg"])
 
-    sh = 220              # stripe height
-    sy = CY - sh // 2    # stripe top y
+    sh = 260             # stripe height — tall enough to hold two lines with breathing room
+    sy = CY - sh // 2   # stripe top y
 
     # Stripe fill
     g.add(dwg.rect(insert=(0, sy), size=(SIZE, sh), fill=c["fg"]))
@@ -241,12 +244,13 @@ def draw_stripe(dwg: svgwrite.Drawing, c: dict) -> None:
     for by in (sy - 6, sy + sh - 4):
         g.add(dwg.rect(insert=(0, by), size=(SIZE, 10), fill=c["ac"]))
 
-    # Text inside stripe
-    _text(g, dwg, "OLIVE STREET", CX, CY - 48, 108, c["bg"], letter_spacing=4)
-    _text(g, dwg, "BAND",         CX, CY + 58,  86, c["ac"], letter_spacing=14)
+    # Text inside stripe — two lines with ~40px gap between them
+    # "OLIVE STREET" centred at CY-60, "BAND" centred at CY+68
+    _text(g, dwg, "OLIVE STREET", CX, CY - 60, 86, c["bg"], letter_spacing=4)
+    _text(g, dwg, "BAND",         CX, CY + 68, 76, c["ac"], letter_spacing=14)
 
     # Fading horizontal rules above the stripe
-    base_above = sh // 2   # distance from CY to stripe top
+    base_above = sh // 2
     for i in range(5):
         dist = base_above + 36 + i * 44
         w    = _chord(dist) * 0.86
@@ -293,14 +297,16 @@ def draw_target(dwg: svgwrite.Drawing, c: dict) -> None:
     g.add(dwg.circle(center=(CX, CY), r=R - 11,
                      fill="none", stroke=c["ac"], stroke_width=11))
 
-    # Text bar (accent fill)
-    bh = 228
+    # Text bar (accent fill) — tall enough for two lines with 40px gap
+    bh = 250
     by = CY - bh // 2
     g.add(dwg.rect(insert=(0, by), size=(SIZE, bh), fill=c["ac"]))
 
-    # Text in bar — bg colour for maximum contrast on the accent bar
-    _text(g, dwg, "OLIVE STREET", CX, CY - 50, 112, c["bg"], letter_spacing=3)
-    _text(g, dwg, "BAND",         CX, CY + 60,  90, c["bg"], letter_spacing=14)
+    # Text in bar — reduced font to stay clear of the circle clip edges
+    # "OLIVE STREET" at CY-56, font 88 → spans CY-100 to CY-12
+    # "BAND" at CY+66, font 76 → spans CY+28 to CY+104
+    _text(g, dwg, "OLIVE STREET", CX, CY - 56, 88, c["bg"], letter_spacing=3)
+    _text(g, dwg, "BAND",         CX, CY + 66, 76, c["bg"], letter_spacing=14)
 
 
 # ─── Design 5: SPLIT ──────────────────────────────────────────────────────────
@@ -325,12 +331,16 @@ def draw_split(dwg: svgwrite.Drawing, c: dict) -> None:
     g.add(dwg.circle(center=(CX, CY), r=R - 13,
                      fill="none", stroke=c["ac"], stroke_width=8))
 
-    # Top half: two-line "OLIVE STREET" in fg colour on bg background
-    _text(g, dwg, "OLIVE",  CX, CY - 178, 148, c["fg"], letter_spacing=8)
-    _text(g, dwg, "STREET", CX, CY - 35,  128, c["fg"], letter_spacing=5)
+    # Top half: OLIVE and STREET — both fully above the divider at CY.
+    # OLIVE centred at CY-305, font 130 → spans CY-370 to CY-240.
+    # STREET centred at CY-155, font 110 → spans CY-210 to CY-100.
+    # Both lines are above CY with ~30px gap between them.
+    _text(g, dwg, "OLIVE",  CX, CY - 305, 130, c["fg"], letter_spacing=8)
+    _text(g, dwg, "STREET", CX, CY - 155, 110, c["fg"], letter_spacing=5)
 
-    # Bottom half: "BAND" in bg colour on fg background
-    _text(g, dwg, "BAND", CX, CY + 155, 162, c["bg"], letter_spacing=12)
+    # Bottom half: BAND — fully below the divider.
+    # Centred at CY+175, font 148 → spans CY+101 to CY+249.
+    _text(g, dwg, "BAND", CX, CY + 175, 148, c["bg"], letter_spacing=12)
 
 
 # ─── Output / generation ──────────────────────────────────────────────────────
