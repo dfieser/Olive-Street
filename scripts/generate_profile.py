@@ -9,6 +9,8 @@ Designs:
   stripe  — Wide horizontal colour stripe with band name reversed out in it
   target  — Bullseye concentric rings with bold text on a bar at the centre
   split   — Circle cut horizontally in two contrasting halves
+    wavefield — Layered horizontal waveforms with a center title medallion
+    ripple  — Circular audio-ripple wave built from radial sine contours
 
 Color schemes: dark | light | tan | mono
 
@@ -54,7 +56,7 @@ COLOR_SCHEMES: dict[str, dict] = {
     "mono":  {"bg": "#1A1A1A", "fg": "#F5F0E1", "ac": "#DDB892"},
 }
 
-DESIGNS = ["stack", "arc", "stripe", "target", "split"]
+DESIGNS = ["stack", "arc", "stripe", "target", "split", "wavefield", "ripple"]
 
 # ─── Shared helpers ───────────────────────────────────────────────────────────
 
@@ -75,8 +77,32 @@ def _chord(dist: float) -> float:
     return 2 * math.sqrt(max(R * R - dist * dist, 0))
 
 
+def _halo_color(c: dict, fill: str) -> str:
+    """Pick a contrasting halo color from the palette for readable text overlays."""
+    if fill == c["bg"]:
+        return c["fg"]
+    return c["bg"]
+
+
 def _text(g, dwg: svgwrite.Drawing, txt: str, x: float, y: float,
-          font_size: int, fill: str, letter_spacing: int = 0) -> None:
+          font_size: int, fill: str, letter_spacing: int = 0,
+          c: dict | None = None, halo: bool = True,
+          halo_scale: float = 0.08) -> None:
+    if halo and c is not None:
+        g.add(dwg.text(
+            txt, insert=(x, y),
+            font_size=font_size,
+            font_family="Georgia, serif",
+            font_weight="bold",
+            fill="none",
+            stroke=_halo_color(c, fill),
+            stroke_width=max(2, int(font_size * halo_scale)),
+            stroke_opacity=0.9,
+            text_anchor="middle",
+            dominant_baseline="central",
+            letter_spacing=letter_spacing,
+        ))
+
     g.add(dwg.text(
         txt, insert=(x, y),
         font_size=font_size,
@@ -90,7 +116,9 @@ def _text(g, dwg: svgwrite.Drawing, txt: str, x: float, y: float,
 
 
 def _arc_chars(g, dwg: svgwrite.Drawing, text: str, r: float,
-               centre_deg: float, font_size: int, fill: str) -> None:
+               centre_deg: float, font_size: int, fill: str,
+               c: dict | None = None, halo: bool = True,
+               halo_scale: float = 0.075) -> None:
     """
     Place each character individually along a circular arc.
     centre_deg = 0 means the text is centred at the top of the circle.
@@ -115,6 +143,21 @@ def _arc_chars(g, dwg: svgwrite.Drawing, text: str, r: float,
         x       = CX + r * math.cos(mid)
         y       = CY + r * math.sin(mid)
         rot_deg = math.degrees(mid) + 90        # tangent rotation
+        if halo and c is not None:
+            g.add(dwg.text(
+                ch, insert=(x, y),
+                font_size=font_size,
+                font_family="Georgia, serif",
+                font_weight="bold",
+                fill="none",
+                stroke=_halo_color(c, fill),
+                stroke_width=max(2, int(font_size * halo_scale)),
+                stroke_opacity=0.9,
+                text_anchor="middle",
+                dominant_baseline="central",
+                transform=f"rotate({rot_deg:.2f},{x:.2f},{y:.2f})",
+            ))
+
         g.add(dwg.text(
             ch, insert=(x, y),
             font_size=font_size,
@@ -166,9 +209,9 @@ def draw_stack(dwg: svgwrite.Drawing, c: dict) -> None:
             ]
             g.add(dwg.polygon(points=pts, fill=c["ac"]))
 
-    _text(g, dwg, "OLIVE",  CX, y_olive,  fs_outer,  c["fg"], letter_spacing=10)
-    _text(g, dwg, "STREET", CX, y_street, fs_street, c["fg"], letter_spacing=8)
-    _text(g, dwg, "BAND",   CX, y_band,   fs_outer,  c["ac"], letter_spacing=14)
+    _text(g, dwg, "OLIVE",  CX, y_olive,  fs_outer,  c["fg"], letter_spacing=10, c=c)
+    _text(g, dwg, "STREET", CX, y_street, fs_street, c["fg"], letter_spacing=8, c=c)
+    _text(g, dwg, "BAND",   CX, y_band,   fs_outer,  c["ac"], letter_spacing=14, c=c)
 
 
 # ─── Design 2: ARC ────────────────────────────────────────────────────────────
@@ -218,10 +261,10 @@ def draw_arc(dwg: svgwrite.Drawing, c: dict) -> None:
 
     # Band name arced along the top — r=400 keeps text clear of the inner ring (R-46=494)
     _arc_chars(g, dwg, BAND_NAME, r=400, centre_deg=0,
-               font_size=70, fill=c["fg"])
+               font_size=70, fill=c["fg"], c=c)
 
     # Bottom ornament dots
-    _text(g, dwg, "◆  ◆  ◆", CX, CY + 318, 30, c["ac"])
+    _text(g, dwg, "◆  ◆  ◆", CX, CY + 318, 30, c["ac"], c=c)
 
 
 # ─── Design 3: STRIPE ─────────────────────────────────────────────────────────
@@ -246,8 +289,8 @@ def draw_stripe(dwg: svgwrite.Drawing, c: dict) -> None:
 
     # Text inside stripe — two lines with ~40px gap between them
     # "OLIVE STREET" centred at CY-60, "BAND" centred at CY+68
-    _text(g, dwg, "OLIVE STREET", CX, CY - 60, 86, c["bg"], letter_spacing=4)
-    _text(g, dwg, "BAND",         CX, CY + 68, 76, c["ac"], letter_spacing=14)
+    _text(g, dwg, "OLIVE STREET", CX, CY - 60, 86, c["bg"], letter_spacing=4, c=c)
+    _text(g, dwg, "BAND",         CX, CY + 68, 76, c["ac"], letter_spacing=14, c=c)
 
     # Fading horizontal rules above the stripe
     base_above = sh // 2
@@ -305,8 +348,8 @@ def draw_target(dwg: svgwrite.Drawing, c: dict) -> None:
     # Text in bar — reduced font to stay clear of the circle clip edges
     # "OLIVE STREET" at CY-56, font 88 → spans CY-100 to CY-12
     # "BAND" at CY+66, font 76 → spans CY+28 to CY+104
-    _text(g, dwg, "OLIVE STREET", CX, CY - 56, 88, c["bg"], letter_spacing=3)
-    _text(g, dwg, "BAND",         CX, CY + 66, 76, c["bg"], letter_spacing=14)
+    _text(g, dwg, "OLIVE STREET", CX, CY - 56, 88, c["bg"], letter_spacing=3, c=c)
+    _text(g, dwg, "BAND",         CX, CY + 66, 76, c["bg"], letter_spacing=14, c=c)
 
 
 # ─── Design 5: SPLIT ──────────────────────────────────────────────────────────
@@ -335,12 +378,147 @@ def draw_split(dwg: svgwrite.Drawing, c: dict) -> None:
     # OLIVE centred at CY-305, font 130 → spans CY-370 to CY-240.
     # STREET centred at CY-155, font 110 → spans CY-210 to CY-100.
     # Both lines are above CY with ~30px gap between them.
-    _text(g, dwg, "OLIVE",  CX, CY - 305, 130, c["fg"], letter_spacing=8)
-    _text(g, dwg, "STREET", CX, CY - 155, 110, c["fg"], letter_spacing=5)
+    _text(g, dwg, "OLIVE",  CX, CY - 305, 130, c["fg"], letter_spacing=8, c=c)
+    _text(g, dwg, "STREET", CX, CY - 155, 110, c["fg"], letter_spacing=5, c=c)
 
     # Bottom half: BAND — fully below the divider.
     # Centred at CY+175, font 148 → spans CY+101 to CY+249.
-    _text(g, dwg, "BAND", CX, CY + 175, 148, c["bg"], letter_spacing=12)
+    _text(g, dwg, "BAND", CX, CY + 175, 148, c["bg"], letter_spacing=12, c=c)
+
+
+# ─── Design 6: WAVEFIELD ─────────────────────────────────────────────────────
+# 11 horizontal waveforms distributed evenly top-to-bottom across the full circle.
+# Amplitude envelope: quiet at the top and bottom edges, loudest through the
+# centre — like viewing a real audio waveform from the side.
+# The band name arcs once along the top. Nothing else.
+
+def draw_wavefield(dwg: svgwrite.Drawing, c: dict) -> None:
+    cid = _clip_circle(dwg)
+    g = dwg.add(dwg.g(clip_path=f"url(#{cid})"))
+    _bg(g, dwg, c["bg"])
+
+    # 11 waves evenly spaced from y=-450 to y=+450 (safe inside R=540).
+    # amplitude_envelope: peaks at centre (i=5), tapers toward the edges.
+    n_waves = 11
+    y_step = 75       # tighter spacing fills the circle more evenly
+    half = (n_waves - 1) / 2
+    for i in range(n_waves):
+        y_off = -int(half * y_step) + i * y_step
+        # Normalised distance from centre (0 = middle, 1 = edge)
+        t = abs(i - half) / half
+        # Amplitude: max 48 at centre, min 8 at edge. Smooth cosine taper.
+        amp = 8 + 40 * math.cos(t * math.pi / 2) ** 2
+        # Frequency gently increases toward the centre — more energy there.
+        freq = 1.2 + (1 - t) * 0.5
+        phase = i * 0.9
+
+        points = []
+        for x in range(-60, SIZE + 61, 12):
+            xn = x / SIZE
+            y = CY + y_off
+            y += amp * math.sin(2 * math.pi * freq * xn + phase)
+            y += amp * 0.28 * math.sin(2 * math.pi * freq * 2.3 * xn - phase * 0.6)
+            points.append((x, y))
+
+        # Central 3 waves are bold and tan (the "loud" part of the signal).
+        # The 4 waves either side are medium cream. Edge waves are thin & dim.
+        if i in (4, 5, 6):
+            color, width, opacity = c["ac"], 10, 0.85
+        elif i in (3, 7):
+            color, width, opacity = c["fg"], 6, 0.68
+        elif i in (2, 8):
+            color, width, opacity = c["fg"], 4, 0.52
+        else:
+            color, width, opacity = c["fg"], 2, 0.38
+
+        g.add(dwg.polyline(
+            points=points, fill="none",
+            stroke=color, stroke_width=width,
+            stroke_opacity=opacity,
+            stroke_linecap="round", stroke_linejoin="round",
+        ))
+
+    # Name arcs once along the top — the only text in this design.
+    # r=450 sits just inside the outer ring (R-14=526), leaving clean breathing room.
+    _arc_chars(g, dwg, BAND_NAME, r=450, centre_deg=0,
+               font_size=60, fill=c["fg"], c=c)
+
+    # Outer ring closes the composition.
+    g.add(dwg.circle(center=(CX, CY), r=R - 14,
+                     fill="none", stroke=c["ac"], stroke_width=8))
+
+
+# ─── Design 7: RIPPLE ────────────────────────────────────────────────────────
+# 5 closed radial ripple rings emanate from the centre of the circle.
+# Each ring is a lightly undulating closed curve — like sound propagating
+# outward through air. The undulation amplitude decays with radius so inner
+# rings are more energetic, outer rings almost circular.
+# The band name arcs once just inside the outer ring. Centre is pure graphic.
+
+def draw_ripple(dwg: svgwrite.Drawing, c: dict) -> None:
+    cid = _clip_circle(dwg)
+    g = dwg.add(dwg.g(clip_path=f"url(#{cid})"))
+    _bg(g, dwg, c["bg"])
+
+    # 5 rings at evenly spaced radii. Maximum radius 430 leaves room for
+    # arc text at r=460 and outer ring at R-14=526.
+    ring_radii = [100, 185, 265, 345, 420]
+
+    for idx, base_r in enumerate(ring_radii):
+        # High frequency (f1=7) means bumps are tightly spaced → reads as
+        # organic texture, not a polygon.  Amplitude is kept very small so the
+        # ring still reads as a circle; inner rings are a little rougher.
+        amp = 6 * (1 - base_r / R) ** 2.2   # r=100→3.8px, r=185→2.5px, r=265→1.4px
+        f1, f2 = 7, 13
+        phase = idx * 1.1   # offset each ring so they don't all peak at same angle
+
+        points = []
+        for deg in range(0, 361, 2):
+            t = math.radians(deg)
+            r_wave = base_r
+            r_wave += amp       * math.sin(f1 * t + phase)
+            r_wave += amp * 0.4 * math.sin(f2 * t - phase * 0.8)
+            points.append((CX + r_wave * math.cos(t),
+                            CY + r_wave * math.sin(t)))
+
+        # Inner 2 rings: tan, thicker. Outer 3: cream, progressively thinner.
+        if idx == 0:
+            color, width, opacity = c["ac"], 6, 0.88
+        elif idx == 1:
+            color, width, opacity = c["ac"], 4.5, 0.78
+        elif idx == 2:
+            color, width, opacity = c["fg"], 3.5, 0.68
+        elif idx == 3:
+            color, width, opacity = c["fg"], 2.5, 0.55
+        else:
+            color, width, opacity = c["fg"], 2, 0.42
+
+        g.add(dwg.polyline(
+            points=points, fill="none",
+            stroke=color, stroke_width=width,
+            stroke_opacity=opacity,
+            stroke_linecap="round", stroke_linejoin="round",
+        ))
+
+    # Four small cardinal tick marks on the outer ring add craft and structure.
+    tick_r_out = R - 18
+    tick_r_in  = tick_r_out - 22
+    for deg in (0, 90, 180, 270):
+        t = math.radians(deg - 90)  # 0° = top
+        g.add(dwg.line(
+            start=(CX + tick_r_in  * math.cos(t), CY + tick_r_in  * math.sin(t)),
+            end  =(CX + tick_r_out * math.cos(t), CY + tick_r_out * math.sin(t)),
+            stroke=c["ac"], stroke_width=4,
+        ))
+
+    # Name arcs once just inside the outer ring — the only text in the design.
+    # r=460 keeps letters clear of the top tick mark and outer ring stroke.
+    _arc_chars(g, dwg, BAND_NAME, r=460, centre_deg=0,
+               font_size=56, fill=c["fg"], c=c)
+
+    # Outer ring closes the composition.
+    g.add(dwg.circle(center=(CX, CY), r=R - 14,
+                     fill="none", stroke=c["ac"], stroke_width=7))
 
 
 # ─── Output / generation ──────────────────────────────────────────────────────
@@ -351,6 +529,8 @@ DRAW_FN = {
     "stripe": draw_stripe,
     "target": draw_target,
     "split":  draw_split,
+    "wavefield": draw_wavefield,
+    "ripple": draw_ripple,
 }
 
 
@@ -394,7 +574,7 @@ def main() -> None:
     p.add_argument("--scheme", choices=list(COLOR_SCHEMES), default="dark",
                    help="Color scheme (default: dark)")
     p.add_argument("--all", dest="all_designs", action="store_true",
-                   help="Generate all 5 designs × 4 schemes (20 files)")
+                   help="Generate all designs x 4 schemes")
     p.add_argument("--png", action="store_true",
                    help="Also export PNG at 2× via cairosvg")
     args = p.parse_args()
