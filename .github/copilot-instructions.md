@@ -79,7 +79,7 @@ Run any script from the workspace root: `python scripts/<name>.py --help`
 ```
 output/logos/          SVG/PNG logos
 output/album_art/      3000×3000 album art
-output/social/         instagram/ twitter/ facebook/ profile/
+output/social/         Social media assets and profile images (flat)
 output/archive/        Old outputs moved here by organize.py
 ```
 

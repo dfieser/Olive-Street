@@ -34,7 +34,7 @@ import svgwrite
 
 # ─── Paths ────────────────────────────────────────────────────────────────────
 ROOT       = Path(__file__).resolve().parent.parent
-OUTPUT_DIR = ROOT / "output" / "social" / "profile"
+OUTPUT_DIR = ROOT / "output" / "social"
 
 # ─── Identity ─────────────────────────────────────────────────────────────────
 BAND_NAME = "OLIVE STREET BAND"
@@ -345,9 +345,10 @@ DRAW_FN = {
 
 
 def _out_path(design: str, scheme: str) -> Path:
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    folder = OUTPUT_DIR
+    folder.mkdir(parents=True, exist_ok=True)
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-    return OUTPUT_DIR / f"{ts}_profile_{design}_{scheme}.svg"
+    return folder / f"{ts}_profile_{design}_{scheme}.svg"
 
 
 def _export_png(svg_path: Path) -> None:

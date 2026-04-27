@@ -102,10 +102,13 @@ def _out_path(asset_type: str, platform: str, bg: str, scheme: str) -> Path:
     if asset_type == "album_art":
         folder = ROOT / "output" / "album_art"
     else:
-        folder = ROOT / "output" / "social" / platform
+        folder = ROOT / "output" / "social"
     folder.mkdir(parents=True, exist_ok=True)
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-    return folder / f"{ts}_{asset_type}_{bg}_{scheme}.svg"
+    if asset_type == "album_art":
+        return folder / f"{ts}_album_art_{bg}_{scheme}.svg"
+    else:
+        return folder / f"{ts}_social_{platform}_{bg}_{scheme}.svg"
 
 
 # ─── Background patterns ──────────────────────────────────────────────────────

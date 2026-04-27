@@ -20,9 +20,7 @@ output/archive/*
 # Keep the output folder structure
 !output/logos/.gitkeep
 !output/album_art/.gitkeep
-!output/social/instagram/.gitkeep
-!output/social/twitter/.gitkeep
-!output/social/facebook/.gitkeep
+!output/social/.gitkeep
 !output/archive/.gitkeep
 
 # OS

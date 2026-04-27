@@ -6,9 +6,10 @@ Run all generators in one shot to produce a full set of Olive Street assets.
 What this produces:
   • 5 logo styles × 4 color schemes = 20 logos  →  output/logos/
   • 5 background patterns × 4 schemes = 20 album art  →  output/album_art/
-  • 5 backgrounds × 3 platforms × 4 schemes = 60 social assets  →  output/social/
+  • 5 backgrounds × 3 platforms × 4 schemes = 60 social assets  →  output/social/<bg>/
+  • 5 profile designs × 4 schemes = 20 profile images  →  output/social/<design>/
 
-Total: up to 100 SVG files, organized and named by timestamp + descriptor.
+Total: up to 120 SVG files, organized by design style / geometry.
 
 Usage:
   # Full run — all styles, schemes, backgrounds, platforms
