@@ -12,14 +12,12 @@ env/
 venv/
 
 # Generated outputs — ignored, keep only folder placeholders
-output/logos/*
 output/profiles/*
 output/posts/*
 output/fliers/*
 output/archive/*
 
 # Keep the output folder structure
-!output/logos/.gitkeep
 !output/profiles/.gitkeep
 !output/posts/.gitkeep
 !output/fliers/.gitkeep

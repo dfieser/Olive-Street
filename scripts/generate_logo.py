@@ -47,7 +47,7 @@ except ImportError:
 # ─── Band identity ────────────────────────────────────────────────────────────
 
 BAND_NAME = "OLIVE STREET BAND"
-OUTPUT_DIR = ROOT / "output" / "logos"
+OUTPUT_DIR = ROOT / "output" / "profiles"
 
 # ─── Color schemes (sourced from criteria/color_palette.json) ─────────────────
 # Palette: Olive Green #6B7A3A | Tan #DDB892 | Cream #F5F0E1

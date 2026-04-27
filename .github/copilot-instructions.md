@@ -77,8 +77,7 @@ Run any script from the workspace root: `python scripts/<name>.py --help`
 ## Output Folders
 
 ```
-output/logos/          Logo lockups
-output/profiles/       Circular profile images
+output/profiles/       Circular profile images and logo lockups
 output/posts/          Social posts, covers, banners
 output/fliers/         Large format — promos, album art, event graphics
 output/archive/        Old outputs moved here by organize.py
