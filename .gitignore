@@ -11,16 +11,18 @@ __pycache__/
 env/
 venv/
 
-# Generated outputs (tracked separately or excluded from version control)
+# Generated outputs — ignored, keep only folder placeholders
 output/logos/*
-output/album_art/*
-output/social/**/*
+output/profiles/*
+output/posts/*
+output/fliers/*
 output/archive/*
 
 # Keep the output folder structure
 !output/logos/.gitkeep
-!output/album_art/.gitkeep
-!output/social/.gitkeep
+!output/profiles/.gitkeep
+!output/posts/.gitkeep
+!output/fliers/.gitkeep
 !output/archive/.gitkeep
 
 # OS

@@ -34,7 +34,7 @@ import svgwrite
 
 # ─── Paths ────────────────────────────────────────────────────────────────────
 ROOT       = Path(__file__).resolve().parent.parent
-OUTPUT_DIR = ROOT / "output" / "social"
+OUTPUT_DIR = ROOT / "output" / "profiles"
 
 # ─── Identity ─────────────────────────────────────────────────────────────────
 BAND_NAME = "OLIVE STREET BAND"

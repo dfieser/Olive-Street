@@ -77,9 +77,10 @@ Run any script from the workspace root: `python scripts/<name>.py --help`
 ## Output Folders
 
 ```
-output/logos/          SVG/PNG logos
-output/album_art/      3000×3000 album art
-output/social/         Social media assets and profile images (flat)
+output/logos/          Logo lockups
+output/profiles/       Circular profile images
+output/posts/          Social posts, covers, banners
+output/fliers/         Large format — promos, album art, event graphics
 output/archive/        Old outputs moved here by organize.py
 ```
 

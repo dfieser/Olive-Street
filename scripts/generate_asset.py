@@ -100,15 +100,15 @@ COLOR_SCHEMES: dict[str, dict] = {
 
 def _out_path(asset_type: str, platform: str, bg: str, scheme: str) -> Path:
     if asset_type == "album_art":
-        folder = ROOT / "output" / "album_art"
+        folder = ROOT / "output" / "fliers"
     else:
-        folder = ROOT / "output" / "social"
+        folder = ROOT / "output" / "posts"
     folder.mkdir(parents=True, exist_ok=True)
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
     if asset_type == "album_art":
-        return folder / f"{ts}_album_art_{bg}_{scheme}.svg"
+        return folder / f"{ts}_flier_{bg}_{scheme}.svg"
     else:
-        return folder / f"{ts}_social_{platform}_{bg}_{scheme}.svg"
+        return folder / f"{ts}_post_{platform}_{bg}_{scheme}.svg"
 
 
 # ─── Background patterns ──────────────────────────────────────────────────────
