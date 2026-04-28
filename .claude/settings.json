@@ -1,0 +1,40 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -c \"import cairosvg; print\\('cairosvg OK'\\)\")",
+      "Bash(ls output/profiles/*.png)",
+      "Bash(which rsvg-convert *)",
+      "Read(//tmp/preview/**)",
+      "Bash(python scripts/generate_profile.py --design stack --scheme dark)",
+      "Bash(python scripts/generate_profile.py --design wavefield --scheme dark)",
+      "Bash(python scripts/generate_profile.py --design ripple --scheme tan)",
+      "Bash(python scripts/generate_profile.py --design arc --scheme light)",
+      "Bash(PYTHONIOENCODING=utf-8 python scripts/generate_profile.py --design stack --scheme dark)",
+      "Bash(PYTHONIOENCODING=utf-8 python scripts/generate_profile.py --design wavefield --scheme dark)",
+      "Bash(PYTHONIOENCODING=utf-8 python scripts/generate_profile.py --design ripple --scheme tan)",
+      "Bash(PYTHONIOENCODING=utf-8 python scripts/generate_profile.py --design arc --scheme light)",
+      "Bash(PYTHONIOENCODING=utf-8 python scripts/generate_profile.py --design stripe --scheme dark)",
+      "Bash(rm -f output/profiles/2026042723*.svg _preview/2026042723*.png)",
+      "Bash(PYTHONIOENCODING=utf-8 python scripts/generate_profile.py --design target --scheme tan)",
+      "Bash(PYTHONIOENCODING=utf-8 python scripts/generate_profile.py --design split --scheme mono)",
+      "Bash(PYTHONIOENCODING=utf-8 python scripts/generate_profile.py --design scope --scheme dark)",
+      "Bash(PYTHONIOENCODING=utf-8 python scripts/generate_profile.py --design boombox --scheme tan)",
+      "Bash(rm -f output/profiles/2026042723*.svg)",
+      "Bash(PYTHONIOENCODING=utf-8 python scripts/generate_profile.py --design lattice --scheme light)",
+      "Bash(PYTHONIOENCODING=utf-8 python scripts/generate_profile.py --design funkgrid --scheme dark)",
+      "Bash(PYTHONIOENCODING=utf-8 python scripts/generate_profile.py --design signstamp --scheme tan)",
+      "Bash(rm -f output/profiles/2026042723*.svg output/profiles/2026042722*.svg)",
+      "Bash(PYTHONIOENCODING=utf-8 python scripts/generate_profile.py --all)",
+      "Bash(magick -background none -density 200 output/profiles/20260427_235705_profile_boombox_dark.svg -resize 720x720 _preview/full_boombox_dark.png)",
+      "Bash(magick -background none -density 200 output/profiles/20260427_235705_profile_lattice_light.svg -resize 720x720 _preview/full_lattice_light.png)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(PYTHONIOENCODING=utf-8 python scripts/generate_logo.py --all)",
+      "Bash(rm -rf _preview)",
+      "Bash(PYTHONIOENCODING=utf-8 python scripts/generate_asset.py --type album_art --bg geometric --title \"First Light\")",
+      "Bash(PYTHONIOENCODING=utf-8 python scripts/generate_asset.py --type social --platform instagram --bg halftone)",
+      "Bash(magick -background none -density 100 output/fliers/20260428_000854_flier_geometric_dark.svg -resize 480x480 _preview/asset_album.png)",
+      "Bash(magick -background none -density 200 output/posts/20260428_000854_post_instagram_halftone_dark.svg -resize 480x480 _preview/asset_post.png)"
+    ]
+  }
+}
