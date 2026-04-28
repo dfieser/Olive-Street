@@ -91,18 +91,35 @@ python scripts/generate_logo.py --all
 
 ### scripts/generate_profile.py
 
-Generates circular profile-image SVGs to output/profiles.
+Generates circular profile-image SVGs to output/profiles. Twelve designs, each
+rendered with halftone wash, inner highlight ring, vignette, and ornament
+detail for a polished badge feel.
 
 | Flag | Description |
 |------|-------------|
-| --design | stack, arc, stripe, target, split |
+| --design | stack, arc, stripe, target, split, wavefield, ripple, scope, boombox, lattice, funkgrid, signstamp |
 | --scheme | dark, light, tan, mono (default: dark) |
-| --all | Generate all design x scheme combinations |
+| --all | Generate all design x scheme combinations (12 x 4 = 48 SVGs) |
 | --png | Also export PNG at 2x (requires cairosvg) |
+
+Designs:
+- stack — OLIVE / STREET / BAND in stacked bold type
+- arc — band name arced over EQ bars with caps + reflection
+- stripe — wide colour stripe with reversed-out type and star ornaments
+- target — bullseye rings with two-line text in an accent bar
+- split — circle halved horizontally with corner stars and diamond ends
+- wavefield — layered horizontal waveforms with a centre horizon band
+- ripple — radial wave rings with a starburst medallion
+- scope — oscilloscope dial with phosphor-glow trace, knobs, bezel LEDs
+- boombox — geometric boombox with antenna, handle, transport pad, knob
+- lattice — radial wave lattice with spokes and centre BAND medallion
+- funkgrid — syncopated rhythm-block matrix inside a calibrated tick ring
+- signstamp — rotated street-sign plate inside a stamped circle
 
 Examples:
 ```powershell
 python scripts/generate_profile.py --design stack --scheme dark
+python scripts/generate_profile.py --design scope --scheme tan
 python scripts/generate_profile.py --all
 ```
 
