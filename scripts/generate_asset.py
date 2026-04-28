@@ -115,10 +115,10 @@ def _out_path(asset_type: str, platform: str, bg: str, scheme: str) -> Path:
 
 def bg_geometric(dwg: svgwrite.Drawing, c: dict, w: float, h: float) -> None:
     """
-    Grid of alternating circles (primary, translucent) and rotated squares
-    (accent stroke, no fill) — creates a dense but restrained texture.
+    Grid of alternating filled circles and rotated outlined squares.
+    Bolder than the previous translucent pass — reads as actual pattern.
     """
-    cols = 24
+    cols = 14
     rows = max(1, round(cols * h / w))
     cw   = w / cols
     ch   = h / rows
@@ -131,25 +131,30 @@ def bg_geometric(dwg: svgwrite.Drawing, c: dict, w: float, h: float) -> None:
             if (row + col) % 2 == 0:
                 dwg.add(dwg.circle(
                     center=(cx, cy), r=r,
-                    fill=c["primary"], fill_opacity=0.08,
-                    stroke=c["primary"], stroke_width=0.6, stroke_opacity=0.25,
+                    fill=c["primary"], fill_opacity=0.18,
+                    stroke=c["primary"], stroke_width=1.6,
+                    stroke_opacity=0.55,
                 ))
+                # inner accent dot
+                dwg.add(dwg.circle(center=(cx, cy), r=r * 0.28,
+                                   fill=c["accent"], fill_opacity=0.6))
             else:
                 sq = r * 1.05
                 dwg.add(dwg.rect(
                     (cx - sq, cy - sq), (sq * 2, sq * 2),
                     fill="none",
-                    stroke=c["accent"], stroke_width=0.6, stroke_opacity=0.22,
+                    stroke=c["accent"], stroke_width=1.4,
+                    stroke_opacity=0.55,
                     transform=f"rotate(45 {cx} {cy})",
                 ))
 
 
 def bg_halftone(dwg: svgwrite.Drawing, c: dict, w: float, h: float) -> None:
     """
-    Dot grid where each circle's radius is modulated by a 2D cosine function
-    of its distance from the canvas center — creates a vignette / iris effect.
+    Dot grid with radius modulated by distance from centre — solid iris of
+    accent dots that fade into the corners. Far more punchy than before.
     """
-    spacing = min(w, h) / 30
+    spacing = min(w, h) / 28
     cols = int(w / spacing) + 2
     rows = int(h / spacing) + 2
     cx_canvas = w / 2
@@ -161,45 +166,45 @@ def bg_halftone(dwg: svgwrite.Drawing, c: dict, w: float, h: float) -> None:
             x = col * spacing
             y = row * spacing
             dist = math.hypot(x - cx_canvas, y - cy_canvas)
-            # Radius varies from 0 to spacing*0.45 driven by a cosine falloff
             t = 1 - (dist / max_dist)
-            r = spacing * 0.45 * (0.3 + 0.7 * math.cos(math.pi * (1 - t) * 0.5) ** 2)
+            r = spacing * 0.50 * (0.25 + 0.85 * math.cos(math.pi * (1 - t) * 0.5) ** 2)
             if r > 0.5:
+                color = c["accent"] if t > 0.55 else c["primary"]
                 dwg.add(dwg.circle(
                     center=(x, y), r=r,
-                    fill=c["primary"], fill_opacity=0.18,
+                    fill=color, fill_opacity=0.55,
                 ))
 
 
 def bg_lines(dwg: svgwrite.Drawing, c: dict, w: float, h: float) -> None:
     """
-    Horizontal ruled lines. Stroke weight oscillates as a sine function of
-    vertical position, producing a soft banding / ripple effect.
+    Horizontal ruled lines whose weight oscillates with position. Strong
+    accent bands every 7th line carry the pattern visually.
     """
-    n_lines = int(h / 6)
+    n_lines = int(h / 14)
     cy = h / 2
     for i in range(n_lines):
         y = (i + 0.5) * (h / n_lines)
-        dist_norm = abs(y - cy) / cy   # 0 at center, 1 at edges
-        # Thin at center, thicker at edges, then thin again
-        weight = 0.4 + 1.8 * math.sin(math.pi * dist_norm) ** 2
-        opacity = 0.12 + 0.25 * (1 - dist_norm)
-        color = c["accent"] if i % 7 == 0 else c["primary"]
+        dist_norm = abs(y - cy) / cy
+        weight = 1.0 + 4.5 * math.sin(math.pi * dist_norm) ** 2
+        opacity = 0.32 + 0.45 * (1 - dist_norm)
+        accent_band = (i % 7 == 0)
+        color = c["accent"] if accent_band else c["primary"]
         dwg.add(dwg.line(
             (0, y), (w, y),
             stroke=color,
-            stroke_width=weight,
+            stroke_width=weight * (1.5 if accent_band else 1),
             stroke_opacity=opacity,
         ))
 
 
 def bg_concentric(dwg: svgwrite.Drawing, c: dict, w: float, h: float) -> None:
     """
-    Concentric rectangles radiating outward from center.
-    Alternates between primary (thin) and accent (ultra-thin) rings.
+    Concentric rectangles radiating outward from centre — bolder rings, with
+    every 5th ring rendered in accent for clear visual rhythm.
     """
     cx, cy = w / 2, h / 2
-    step = min(w, h) / 28
+    step = min(w, h) / 22
     max_rings = int(math.hypot(cx, cy) / step) + 2
 
     for i in range(max_rings):
@@ -210,38 +215,48 @@ def bg_concentric(dwg: svgwrite.Drawing, c: dict, w: float, h: float) -> None:
             (cx - rx, cy - ry), (rx * 2, ry * 2),
             fill="none",
             stroke=c["accent"] if is_accent else c["primary"],
-            stroke_width=1.2 if is_accent else 0.5,
-            stroke_opacity=0.30 if is_accent else 0.15,
+            stroke_width=3 if is_accent else 1.4,
+            stroke_opacity=0.65 if is_accent else 0.35,
         ))
 
 
 def bg_minimal(dwg: svgwrite.Drawing, c: dict, w: float, h: float) -> None:
     """
-    A single offset geometric accent — a large rectangle displaced toward
-    the lower-right — providing structure and tension against the flat background.
+    Editorial layout — a large offset double-rectangle composition, a
+    horizontal rule at the golden-ratio line, and a small filled accent
+    square that anchors the negative space.
     """
-    # Offset square / rect
-    size = min(w, h) * 0.72
-    ox = w * 0.58
-    oy = h * 0.52
+    size = min(w, h) * 0.78
+    ox = w * 0.42
+    oy = h * 0.18
     dwg.add(dwg.rect(
         (ox, oy), (size, size),
         fill="none",
-        stroke=c["primary"], stroke_width=1.5, stroke_opacity=0.15,
+        stroke=c["primary"], stroke_width=4, stroke_opacity=0.45,
     ))
-    # Second inner offset rect
-    inset = size * 0.06
+    inset = size * 0.05
     dwg.add(dwg.rect(
         (ox + inset, oy + inset), (size - inset * 2, size - inset * 2),
         fill="none",
-        stroke=c["accent"], stroke_width=0.75, stroke_opacity=0.20,
+        stroke=c["accent"], stroke_width=2, stroke_opacity=0.55,
     ))
-    # Thin horizontal rule at golden ratio height
+    # Solid filled accent block in the upper-left
+    fill_size = min(w, h) * 0.12
+    dwg.add(dwg.rect(
+        (w * 0.08, h * 0.14), (fill_size, fill_size),
+        fill=c["accent"], fill_opacity=0.85,
+    ))
+    # Thin horizontal rule at golden-ratio height
     phi_y = h * 0.382
     dwg.add(dwg.line(
         (w * 0.08, phi_y), (w * 0.55, phi_y),
-        stroke=c["accent"], stroke_width=1, stroke_opacity=0.55,
+        stroke=c["accent"], stroke_width=2.5, stroke_opacity=0.85,
     ))
+    # End-of-rule diamond bullets
+    for x in (w * 0.08, w * 0.55):
+        dwg.add(dwg.polygon(points=[
+            (x, phi_y - 6), (x + 6, phi_y), (x, phi_y + 6), (x - 6, phi_y)
+        ], fill=c["accent"]))
 
 
 BG_FUNCS = {
@@ -257,42 +272,60 @@ BG_FUNCS = {
 def add_text_overlay(dwg: svgwrite.Drawing, c: dict, w: float, h: float,
                      band: str, title: str, font: str) -> None:
     """
-    Places band name and optional title text within the design safe zone.
-    Both lines are anchored to the lower-left of the safe area, mirroring
-    common album art / social asset conventions.
+    Lower-left typographic block with band name + optional title, framed
+    by an accent rule and trailing "EST · 2026" mark for editorial polish.
     """
-    safe_margin_x = w * 0.07
-    safe_margin_y = h * 0.07
+    safe_margin_x = w * 0.06
+    safe_margin_y = h * 0.06
     baseline_y    = h - safe_margin_y
 
-    # Album/asset title — larger, positioned above the band name
-    if title:
-        title_size = h * 0.065
+    # Build a stacked block from the bottom up.
+    name_size  = max(18, h * 0.032)
+    rule_y     = baseline_y - name_size * 1.6
+    title_size = max(28, h * 0.075)
+
+    # Band name — smaller, at the very bottom
+    if band:
         dwg.add(dwg.text(
-            title,
-            insert=(safe_margin_x, baseline_y - title_size * 1.25),
-            text_anchor="start",
-            dominant_baseline="auto",
-            font_family=font,
-            font_size=title_size,
-            font_weight="bold",
-            fill=c["primary"],
-            letter_spacing=title_size * 0.04,
+            band,
+            insert=(safe_margin_x, baseline_y),
+            text_anchor="start", dominant_baseline="auto",
+            font_family=font, font_size=name_size,
+            fill=c["primary"], letter_spacing=name_size * 0.20,
+        ))
+        # EST mark trailing the band name
+        dwg.add(dwg.text(
+            "★ EST · 2026",
+            insert=(safe_margin_x, baseline_y - name_size * 1.05),
+            text_anchor="start", dominant_baseline="auto",
+            font_family=font, font_size=name_size * 0.62,
+            fill=c["accent"], letter_spacing=name_size * 0.16,
         ))
 
-    # Band name — smaller, at the very bottom of the safe zone
-    name_size = h * 0.035
-    dwg.add(dwg.text(
-        band,
-        insert=(safe_margin_x, baseline_y),
-        text_anchor="start",
-        dominant_baseline="auto",
-        font_family=font,
-        font_size=name_size,
-        fill=c["primary"],
-        letter_spacing=name_size * 0.20,
-        fill_opacity=0.80,
+    # Accent rule between band name and title
+    rule_w = min(w * 0.42, max(220, len(title or band) * title_size * 0.55))
+    dwg.add(dwg.line(
+        (safe_margin_x, rule_y),
+        (safe_margin_x + rule_w, rule_y),
+        stroke=c["accent"], stroke_width=max(2, h * 0.003),
     ))
+    # Diamond at the right end of the rule
+    dx = safe_margin_x + rule_w
+    diamond_r = max(5, h * 0.005)
+    dwg.add(dwg.polygon(points=[
+        (dx, rule_y - diamond_r), (dx + diamond_r, rule_y),
+        (dx, rule_y + diamond_r), (dx - diamond_r, rule_y),
+    ], fill=c["accent"]))
+
+    # Album / asset title — large, anchored above the rule
+    if title:
+        dwg.add(dwg.text(
+            title,
+            insert=(safe_margin_x, rule_y - title_size * 0.30),
+            text_anchor="start", dominant_baseline="auto",
+            font_family=font, font_size=title_size, font_weight="bold",
+            fill=c["primary"], letter_spacing=title_size * 0.03,
+        ))
 
 
 # ─── Main generator ───────────────────────────────────────────────────────────
@@ -381,10 +414,6 @@ def main():
                      args.font, band, title, args.png)
         else:
             parser.error("--type=social requires --platform or --all-platforms")
-
-
-if __name__ == "__main__":
-    main()
 
 
 if __name__ == "__main__":
