@@ -71,7 +71,8 @@ Olive Street/
 
 ### scripts/generate_logo.py
 
-Generates logo SVGs to output/profiles.
+Generates logo SVGs to output/profiles. Each style applies a halftone wash,
+diamond ornaments, and an "EST · 2026" mark for a polished printed feel.
 
 | Flag | Description |
 |------|-------------|
@@ -79,8 +80,15 @@ Generates logo SVGs to output/profiles.
 | --scheme | dark, light, tan, mono (default: dark) |
 | --font | Font family name (default: Georgia) |
 | --name | Override band name text |
-| --all | Generate all style x scheme combinations |
+| --all | Generate all style x scheme combinations (5 x 4 = 20 SVGs) |
 | --png | Also export PNG at 2x (requires cairosvg) |
+
+Styles:
+- wordmark — single-line horizontal mark between two diamond-anchored rules
+- stacked — three-line OLIVE / STREET / BAND with diamond-rule dividers
+- emblem — two-line layout in a double-border frame with L-cut corner ornaments
+- badge — circular stamp with concentric rings, tick marks, and cardinal diamonds
+- block — high-contrast split block with reversed-out type and accent stripe
 
 Examples:
 ```powershell
