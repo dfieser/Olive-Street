@@ -273,7 +273,7 @@ def add_text_overlay(dwg: svgwrite.Drawing, c: dict, w: float, h: float,
                      band: str, title: str, font: str) -> None:
     """
     Lower-left typographic block with band name + optional title, framed
-    by an accent rule and trailing "EST · 2026" mark for editorial polish.
+    by an accent rule and trailing "EST · 2025" mark for editorial polish.
     """
     safe_margin_x = w * 0.06
     safe_margin_y = h * 0.06
@@ -295,7 +295,7 @@ def add_text_overlay(dwg: svgwrite.Drawing, c: dict, w: float, h: float,
         ))
         # EST mark trailing the band name
         dwg.add(dwg.text(
-            "★ EST · 2026",
+            "★ EST · 2025",
             insert=(safe_margin_x, baseline_y - name_size * 1.05),
             text_anchor="start", dominant_baseline="auto",
             font_family=font, font_size=name_size * 0.62,

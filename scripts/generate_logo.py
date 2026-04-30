@@ -282,27 +282,21 @@ def draw_wordmark(dwg: svgwrite.Drawing, c: dict, w: float, h: float,
         letter_spacing=tracking,
     ))
 
-    # EST · 2026 micro-mark sitting on top rule, centred
+    # EST · 2025 micro-mark sitting on top rule, centred
     dwg.add(dwg.rect((cx - 60, rule_y_top - 9), (120, 18),
                      fill=c["background"]))
     dwg.add(dwg.text(
-        "EST · 2026",
+        "EST · 2025",
         insert=(cx, rule_y_top + 1),
         text_anchor="middle", dominant_baseline="middle",
         font_family=font, font_size=12, font_weight="bold",
         fill=c["accent"], letter_spacing=2,
     ))
 
-    # MUSIC sub-mark on the bottom rule
-    dwg.add(dwg.rect((cx - 36, rule_y_bottom - 9), (72, 18),
+    # Decorative diamond on the bottom rule (mirroring the top EST mark)
+    dwg.add(dwg.rect((cx - 12, rule_y_bottom - 7), (24, 14),
                      fill=c["background"]))
-    dwg.add(dwg.text(
-        "MUSIC",
-        insert=(cx, rule_y_bottom + 1),
-        text_anchor="middle", dominant_baseline="middle",
-        font_family=font, font_size=11,
-        fill=c["secondary"], letter_spacing=3,
-    ))
+    dwg.add(_diamond(dwg, cx, rule_y_bottom, 5, c["accent"]))
 
 
 # ─── Style: Stacked ───────────────────────────────────────────────────────────
@@ -388,9 +382,9 @@ def draw_stacked(dwg: svgwrite.Drawing, c: dict, w: float, h: float,
             fill=fill, letter_spacing=fs * 0.10,
         ))
 
-    # EST · 2026 micro-mark just below the bottom rule
+    # EST · 2025 micro-mark just below the bottom rule
     dwg.add(dwg.text(
-        "★ EST · 2026 ★",
+        "★ EST · 2025 ★",
         insert=(cx, h * 0.92),
         text_anchor="middle", dominant_baseline="middle",
         font_family=font, font_size=10,
@@ -508,9 +502,9 @@ def draw_emblem(dwg: svgwrite.Drawing, c: dict, w: float, h: float,
                          6, c["accent"], width=1, opacity=0.55):
         dwg.add(el)
 
-    # EST · 2026 micro-mark at bottom of frame
+    # EST · 2025 micro-mark at bottom of frame
     dwg.add(dwg.text(
-        "★ EST · 2026 ★ MUSIC ★",
+        "★ EST · 2025 ★",
         insert=(cx, frame_my + frame_h - 16),
         text_anchor="middle", dominant_baseline="middle",
         font_family=font, font_size=11,
@@ -621,13 +615,13 @@ def draw_badge(dwg: svgwrite.Drawing, c: dict, w: float, h: float,
         fill=c["primary"], letter_spacing=tracking,
     ))
     dwg.add(dwg.text(
-        "MUSIC", insert=(cx, cy + fs_centre * 0.62),
+        "EST · 2025", insert=(cx, cy + fs_centre * 0.62),
         text_anchor="middle", dominant_baseline="middle",
-        font_family=font, font_size=fs_centre * 0.30,
-        fill=c["accent"], letter_spacing=4,
+        font_family=font, font_size=fs_centre * 0.26,
+        fill=c["accent"], letter_spacing=3,
     ))
 
-    # Hairline rule above MUSIC
+    # Hairline rule above the EST mark
     rule_y = cy + fs_centre * 0.40
     rule_w_inner = r_inner * 0.42
     for x0, x1 in ((cx - rule_w_inner / 2, cx - 6),
@@ -665,7 +659,7 @@ def draw_badge(dwg: svgwrite.Drawing, c: dict, w: float, h: float,
                           stroke_opacity=0.6))
     # Banner text
     dwg.add(dwg.text(
-        "★ EST · 2026 ★",
+        "★ EST · 2025 ★",
         insert=(cx, rib_y + rib_h / 2 + 1),
         text_anchor="middle", dominant_baseline="middle",
         font_family=font, font_size=rib_h * 0.42, font_weight="bold",
@@ -683,7 +677,7 @@ def draw_badge(dwg: svgwrite.Drawing, c: dict, w: float, h: float,
 def draw_seal(dwg: svgwrite.Drawing, c: dict, w: float, h: float,
                band: str, font: str) -> None:
     """
-    Circular government-style seal: BAND NAME arcing along the top, "EST · 2026"
+    Circular government-style seal: BAND NAME arcing along the top, "EST · 2025"
     arcing along the bottom (right-side up via flip), bold three-line stack
     inside, with notched cardinals and a perimeter dot ring.
     """
@@ -748,7 +742,7 @@ def draw_seal(dwg: svgwrite.Drawing, c: dict, w: float, h: float,
 
     # Arc text — EST mark along the bottom (flipped to read upright)
     arc_fs_bot = r_outer * 0.075
-    for el in _arc_text(dwg, "★ EST · 2026 · MUSIC ★", cx, cy, r_text,
+    for el in _arc_text(dwg, "★ EST · 2025 ★", cx, cy, r_text,
                          centre_deg=180, font_size=arc_fs_bot,
                          fill=c["accent"], font=font,
                          letter_spacing=arc_fs_bot * 0.20,
@@ -858,21 +852,14 @@ def draw_block(dwg: svgwrite.Drawing, c: dict, w: float, h: float,
         dwg.add(dwg.rect((bx, bar_base_y - bh), (bar_w_each, bh),
                          fill=c["primary"], rx=1))
 
-    # EST · 2026 mark to the LEFT of the EQ cluster, MUSIC mark to the RIGHT
-    label_y = bar_base_y - bar_max_h * 0.50
+    # EST · 2025 mark centred above the EQ cluster
+    label_y = bar_base_y - bar_max_h - 8
     label_size = font_size * 0.30
     dwg.add(dwg.text(
-        "★ EST · 2026",
-        insert=(bar_zone_x - 24, label_y),
-        text_anchor="end", dominant_baseline="middle",
+        "★ EST · 2025 ★",
+        insert=(bar_zone_x + bar_zone_w / 2, label_y),
+        text_anchor="middle", dominant_baseline="auto",
         font_family=font, font_size=label_size,
-        fill=c["primary"], letter_spacing=2,
-    ))
-    dwg.add(dwg.text(
-        "MUSIC ★",
-        insert=(bar_zone_x + bar_zone_w + 24, label_y),
-        text_anchor="start", dominant_baseline="middle",
-        font_family=font, font_size=label_size, font_weight="bold",
         fill=c["primary"], letter_spacing=2,
     ))
 

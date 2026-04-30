@@ -293,6 +293,55 @@ def _ensure_glow_filter(dwg: svgwrite.Drawing, color: str,
     return f"url(#{fid})"
 
 
+def _ribbon(g, dwg: svgwrite.Drawing, cx: float, cy: float, w: float,
+             h: float, fill: str, edge: str, edge_w: float = 2,
+             tail: float | None = None) -> None:
+    """Flag-tail ribbon banner centered at (cx, cy)."""
+    if tail is None:
+        tail = h * 0.55
+    rx = cx - w / 2
+    ry = cy - h / 2
+    body = [
+        (rx,         ry),
+        (rx + tail,  ry + h * 0.5),
+        (rx,         ry + h),
+        (rx + w,     ry + h),
+        (rx + w - tail, ry + h * 0.5),
+        (rx + w,     ry),
+    ]
+    g.add(dwg.polygon(points=body, fill=fill, stroke=edge,
+                      stroke_width=edge_w))
+    # inner stitch
+    inset = max(4, edge_w * 2)
+    inner = [
+        (rx + inset,         ry + inset),
+        (rx + tail,          ry + h * 0.5),
+        (rx + inset,         ry + h - inset),
+        (rx + w - inset,     ry + h - inset),
+        (rx + w - tail,      ry + h * 0.5),
+        (rx + w - inset,     ry + inset),
+    ]
+    g.add(dwg.polygon(points=inner, fill="none", stroke=edge,
+                      stroke_width=max(0.7, edge_w * 0.45),
+                      stroke_opacity=0.55))
+
+
+def _sunbeam_rays(g, dwg: svgwrite.Drawing, cx: float, cy: float,
+                   r_inner: float, r_outer: float, n: int, fill: str,
+                   opacity: float = 0.5) -> None:
+    """Triangular sunburst rays radiating from a centre point."""
+    for i in range(n):
+        a0 = math.radians(i * (360 / n) - 90 - 360 / n * 0.42)
+        a1 = math.radians(i * (360 / n) - 90 + 360 / n * 0.42)
+        a_mid = math.radians(i * (360 / n) - 90)
+        pts = [
+            (cx + r_inner * math.cos(a0),  cy + r_inner * math.sin(a0)),
+            (cx + r_outer * math.cos(a_mid), cy + r_outer * math.sin(a_mid)),
+            (cx + r_inner * math.cos(a1),  cy + r_inner * math.sin(a1)),
+        ]
+        g.add(dwg.polygon(points=pts, fill=fill, fill_opacity=opacity))
+
+
 def _ensure_halftone_pattern(dwg: svgwrite.Drawing, color: str,
                               tile: int = 20, dot_r: float = 2.4,
                               opacity: float = 0.45) -> str:
@@ -324,13 +373,31 @@ def draw_stack(dwg: svgwrite.Drawing, c: dict) -> None:
                      fill=_ensure_halftone_pattern(dwg, c["fg"], tile=22,
                                                     dot_r=1.3, opacity=0.13)))
 
-    # Outer accent ring + thin inner highlight
+    # Faint sunburst rays behind the type — set very low opacity so they
+    # read as a halo rather than a graphic.
+    _sunbeam_rays(g, dwg, CX, CY, r_inner=80, r_outer=R - 90, n=24,
+                   fill=c["ac"], opacity=0.10)
+    _radial_spokes(g, dwg, c["fg"], n=48, r_in=120, r_out=R - 80,
+                    width=0.7, opacity=0.18)
+
+    # Outer accent ring + thin inner highlight, plus a second hairline ring
     g.add(dwg.circle(center=(CX, CY), r=R - 15,
                      fill="none", stroke=c["ac"], stroke_width=7))
     _inner_highlight(g, dwg, c, r=R - 26, width=1.4, opacity=0.55)
+    g.add(dwg.circle(center=(CX, CY), r=R - 56,
+                     fill="none", stroke=c["fg"], stroke_width=1,
+                     stroke_opacity=0.35))
 
-    # Decorative perimeter dots, leaving the top + bottom clear for type
+    # Two perimeter dot rings — one between the rings, one further out
     _perimeter_marks(g, dwg, c["ac"], n=24, r=R - 36, dot_r=2.6, skip_top=10)
+    _perimeter_marks(g, dwg, c["fg"], n=48, r=R - 70, dot_r=1.4, skip_top=14)
+
+    # Compass starbursts at 9 and 3 o'clock (out by the perimeter)
+    for deg in (90, 270):
+        rad = math.radians(deg - 90)
+        x = CX + (R - 50) * math.cos(rad)
+        y = CY + (R - 50) * math.sin(rad)
+        _starburst(g, dwg, x, y, r_out=14, r_in=5, points=8, fill=c["ac"])
 
     # Vertical layout — generous gaps so nothing touches
     fs_outer  = 130    # OLIVE and BAND
@@ -361,8 +428,11 @@ def draw_stack(dwg: svgwrite.Drawing, c: dict) -> None:
     _text(g, dwg, "STREET", CX, y_street, fs_street, c["fg"], letter_spacing=8, c=c)
     _text(g, dwg, "BAND",   CX, y_band,   fs_outer,  c["ac"], letter_spacing=14, c=c)
 
-    # Tiny "EST · 2026" star bar at the bottom edge
-    _text(g, dwg, "★ EST · 2026 ★", CX, CY + 320, 28, c["ac"], c=c)
+    # Ribbon banner replaces the simple EST text at the bottom edge
+    _ribbon(g, dwg, CX, CY + 340, 360, 56, fill=c["ac"], edge=c["bg"],
+             edge_w=2.5)
+    _text(g, dwg, "★ EST · 2025 ★", CX, CY + 340, 26, c["bg"], c=c,
+          halo=False)
 
     _vignette(g, dwg, opacity=0.22)
 
@@ -438,12 +508,18 @@ def draw_arc(dwg: svgwrite.Drawing, c: dict) -> None:
     _arc_chars(g, dwg, BAND_NAME, r=400, centre_deg=0,
                font_size=70, fill=c["fg"], c=c)
 
-    # Bottom ornament — diamond bullets with rule
-    g.add(dwg.line(start=(CX - 200, CY + 316), end=(CX - 60, CY + 316),
-                   stroke=c["ac"], stroke_width=2))
-    g.add(dwg.line(start=(CX + 60, CY + 316), end=(CX + 200, CY + 316),
-                   stroke=c["ac"], stroke_width=2))
-    _text(g, dwg, "★ ★ ★", CX, CY + 318, 30, c["ac"], c=c)
+    # Bottom ribbon banner replaces the simple star bar
+    _ribbon(g, dwg, CX, CY + 380, 320, 50, fill=c["ac"], edge=c["bg"],
+             edge_w=2.5)
+    _text(g, dwg, "★ EST · 2025 ★", CX, CY + 380, 24, c["bg"],
+          letter_spacing=2, c=c, halo=False)
+
+    # Side starbursts framing the EQ display at 9 and 3 o'clock
+    for deg in (90, 270):
+        rad = math.radians(deg - 90)
+        x = CX + 460 * math.cos(rad)
+        y = CY + 460 * math.sin(rad)
+        _starburst(g, dwg, x, y, r_out=14, r_in=5, points=8, fill=c["ac"])
 
     _vignette(g, dwg, opacity=0.22)
 
@@ -504,7 +580,19 @@ def draw_stripe(dwg: svgwrite.Drawing, c: dict) -> None:
 
     # Star ornament corners flanking the stripe text
     for sx in (CX - 380, CX + 380):
-        _starburst(g, dwg, sx, CY, r_out=18, r_in=7, points=4, fill=c["ac"])
+        _starburst(g, dwg, sx, CY, r_out=20, r_in=7, points=8, fill=c["ac"])
+
+    # Top compass medallion — pure ornament, no text
+    _starburst(g, dwg, CX, CY - 260, r_out=22, r_in=9, points=12, fill=c["ac"])
+
+    # Mirror starburst at the bottom (also pure ornament)
+    _starburst(g, dwg, CX, CY + 260, r_out=22, r_in=9, points=12, fill=c["ac"])
+
+    # Bottom ribbon with the only EST mark
+    _ribbon(g, dwg, CX, CY + 360, 320, 48, fill=c["ac"], edge=c["bg"],
+             edge_w=2.5)
+    _text(g, dwg, "★ EST · 2025 ★", CX, CY + 360, 22, c["bg"],
+          letter_spacing=4, c=c, halo=False)
 
     _vignette(g, dwg, opacity=0.22)
 
@@ -534,13 +622,27 @@ def draw_target(dwg: svgwrite.Drawing, c: dict) -> None:
                      fill="none", stroke=c["ac"], stroke_width=11))
     _inner_highlight(g, dwg, c, r=R - 24, width=1.4, opacity=0.55)
 
+    # Faint radial spokes between the rings, etched-dial feel
+    _radial_spokes(g, dwg, c["ac"], n=72, r_in=80, r_out=R - 30,
+                    width=0.7, opacity=0.18)
+
     # Crosshair tick marks at the four cardinal points (over the rings)
     for deg in (0, 90, 180, 270):
         rad = math.radians(deg - 90)
         x_in,  y_in  = CX + (R - 28) * math.cos(rad), CY + (R - 28) * math.sin(rad)
         x_out, y_out = CX + (R - 60) * math.cos(rad), CY + (R - 60) * math.sin(rad)
         g.add(dwg.line(start=(x_in, y_in), end=(x_out, y_out),
-                       stroke=c["ac"], stroke_width=4))
+                       stroke=c["ac"], stroke_width=5))
+
+    # Diamond ornaments at the diagonals (45/135/225/315°) on the outer ring
+    for deg in (45, 135, 225, 315):
+        rad = math.radians(deg - 90)
+        dx = CX + (R - 36) * math.cos(rad)
+        dy = CY + (R - 36) * math.sin(rad)
+        g.add(dwg.polygon(points=[
+            (dx, dy - 9), (dx + 9, dy), (dx, dy + 9), (dx - 9, dy)
+        ], fill=c["ac"]))
+        g.add(dwg.circle(center=(dx, dy), r=2.4, fill=c["bg"]))
 
     # Text bar (accent fill) with thin fg edges for solidity.
     bh = 230
@@ -557,10 +659,22 @@ def draw_target(dwg: svgwrite.Drawing, c: dict) -> None:
     # Two-line text — sized to clear the bar with breathing room.
     _text(g, dwg, "OLIVE STREET", CX, CY - 44, 76, c["bg"],
           letter_spacing=3, c=c, halo=False)
-    g.add(dwg.line(start=(CX - 170, CY + 8), end=(CX + 170, CY + 8),
+    # Hairline divider with diamond marker
+    g.add(dwg.line(start=(CX - 170, CY + 8), end=(CX - 14, CY + 8),
                    stroke=c["bg"], stroke_width=2, stroke_opacity=0.55))
+    g.add(dwg.line(start=(CX + 14, CY + 8), end=(CX + 170, CY + 8),
+                   stroke=c["bg"], stroke_width=2, stroke_opacity=0.55))
+    g.add(dwg.polygon(points=[
+        (CX, CY + 1), (CX + 7, CY + 8), (CX, CY + 15), (CX - 7, CY + 8)
+    ], fill=c["bg"]))
     _text(g, dwg, "BAND", CX, CY + 56, 60, c["bg"],
           letter_spacing=12, c=c, halo=False)
+
+    # Bottom ribbon banner with EST mark
+    _ribbon(g, dwg, CX, CY + 350, 320, 50, fill=c["bg"], edge=c["ac"],
+             edge_w=2.5)
+    _text(g, dwg, "★ EST · 2025 ★", CX, CY + 350, 24, c["ac"],
+          letter_spacing=2, c=c, halo=False)
 
     _vignette(g, dwg, opacity=0.22)
 
@@ -580,30 +694,75 @@ def draw_split(dwg: svgwrite.Drawing, c: dict) -> None:
     # Bottom half — fg colour
     g.add(dwg.rect(insert=(0, CY), size=(SIZE, SIZE), fill=c["fg"]))
 
-    # Halftone wash on the top half (subtle texture)
+    # Sunbeam rays radiating UP from the divider line, behind the top type.
+    # Each ray is a thin triangle from a point just above the divider to the
+    # top of the canvas — gives the top half a "sunrise" feel.
+    n_rays = 14
+    span = math.pi  # half a circle (top arc)
+    for i in range(n_rays):
+        a = -math.pi + (i + 0.5) * (span / n_rays)
+        a0 = a - span / n_rays * 0.42
+        a1 = a + span / n_rays * 0.42
+        r_in_ray  = 24
+        r_out_ray = R + 10
+        pts = [
+            (CX + r_in_ray  * math.cos(a0),  CY + r_in_ray  * math.sin(a0)),
+            (CX + r_out_ray * math.cos(a),   CY + r_out_ray * math.sin(a)),
+            (CX + r_in_ray  * math.cos(a1),  CY + r_in_ray  * math.sin(a1)),
+        ]
+        g.add(dwg.polygon(points=pts, fill=c["ac"], fill_opacity=0.18))
+
+    # Halftone wash on each half for texture
     g.add(dwg.rect(insert=(0, 0), size=(SIZE, CY),
                    fill=_ensure_halftone_pattern(dwg, c["fg"], tile=22,
                                                   dot_r=1.3, opacity=0.18)))
-    # Halftone on the bottom half (using bg colour)
     g.add(dwg.rect(insert=(0, CY), size=(SIZE, CY),
                    fill=_ensure_halftone_pattern(dwg, c["bg"], tile=22,
                                                   dot_r=1.3, opacity=0.18)))
 
-    # Decorative stars in the top half corners
-    _starburst(g, dwg, CX - 320, CY - 320, r_out=18, r_in=7, points=4, fill=c["ac"])
-    _starburst(g, dwg, CX + 320, CY - 320, r_out=18, r_in=7, points=4, fill=c["ac"])
+    # Decorative starbursts in the top half corners
+    _starburst(g, dwg, CX - 320, CY - 320, r_out=22, r_in=8, points=8, fill=c["ac"])
+    _starburst(g, dwg, CX + 320, CY - 320, r_out=22, r_in=8, points=8, fill=c["ac"])
 
-    # Tiny accent dots in the bottom half flanking BAND
+    # Compass diamond at the top of the circle
+    _compass_marks(g, dwg, c["ac"], r=R - 50, size=10, opacity=0.9)
+
+    # Bottom half: an EQ-bar pattern below BAND for graphic anchor
+    bar_count = 11
+    bar_zone_w = 460
+    bar_zone_x = CX - bar_zone_w / 2
+    bar_w_each = bar_zone_w / (bar_count * 1.7)
+    bar_gap = (bar_zone_w - bar_count * bar_w_each) / (bar_count - 1)
+    bar_max_h = 80
+    bar_base_y = CY + 380
+    heights = [0.45, 0.62, 0.78, 0.92, 1.0, 0.86, 1.0, 0.92, 0.78, 0.62, 0.45]
+    for i in range(bar_count):
+        bx = bar_zone_x + i * (bar_w_each + bar_gap)
+        bh = bar_max_h * heights[i]
+        g.add(dwg.rect(insert=(bx, bar_base_y - bh),
+                       size=(bar_w_each, bh), fill=c["bg"], rx=2))
+
+    # Bottom-half accent dots flanking BAND
     for dx in (-360, 360):
-        g.add(dwg.circle(center=(CX + dx, CY + 175), r=10, fill=c["ac"]))
+        g.add(dwg.circle(center=(CX + dx, CY + 175), r=12, fill=c["ac"]))
+        g.add(dwg.circle(center=(CX + dx, CY + 175), r=5, fill=c["bg"]))
 
-    # Accent dividing line — with end ornaments
+    # Accent dividing line and end diamonds
     g.add(dwg.rect(insert=(0, CY - 6), size=(SIZE, 12), fill=c["ac"]))
+    g.add(dwg.rect(insert=(0, CY - 10), size=(SIZE, 2), fill=c["fg"],
+                   opacity=0.4))
+    g.add(dwg.rect(insert=(0, CY + 8), size=(SIZE, 2), fill=c["fg"],
+                   opacity=0.4))
     for dx in (-1, 1):
         x = CX + dx * 460
-        g.add(dwg.polygon(points=[(x, CY - 18), (x + dx * 18, CY),
-                                    (x, CY + 18), (x - dx * 18, CY)],
+        g.add(dwg.polygon(points=[(x, CY - 20), (x + dx * 20, CY),
+                                    (x, CY + 20), (x - dx * 20, CY)],
                           fill=c["ac"]))
+
+    # Centred ribbon banner ON the divider with band tagline
+    _ribbon(g, dwg, CX, CY, 280, 44, fill=c["bg"], edge=c["ac"], edge_w=2)
+    _text(g, dwg, "★ EST · 2025 ★", CX, CY, 22, c["ac"],
+          letter_spacing=2, c=c, halo=False)
 
     # Outer accent ring + thin highlight inset
     g.add(dwg.circle(center=(CX, CY), r=R - 13,
@@ -700,6 +859,12 @@ def draw_wavefield(dwg: svgwrite.Drawing, c: dict) -> None:
         y = CY + 450 * math.sin(rad)
         pts = [(x, y - 8), (x + 8, y), (x, y + 8), (x - 8, y)]
         g.add(dwg.polygon(points=pts, fill=c["ac"]))
+
+    # Bottom ribbon banner with EST mark
+    _ribbon(g, dwg, CX, CY + 430, 320, 50, fill=c["ac"], edge=c["bg"],
+             edge_w=2.5)
+    _text(g, dwg, "★ EST · 2025 ★", CX, CY + 430, 24, c["bg"],
+          letter_spacing=2, c=c, halo=False)
 
     _vignette(g, dwg, opacity=0.28)
 
@@ -884,7 +1049,7 @@ def draw_scope(dwg: svgwrite.Drawing, c: dict) -> None:
     for cap_x in (CX - 215, CX + 215 - 8):
         g.add(dwg.rect(insert=(cap_x, CY + 226), size=(8, 40),
                        fill=c["bg"], opacity=0.4))
-    _text(g, dwg, "★ EST · 2026 ★", CX, CY + 246, 30, c["bg"],
+    _text(g, dwg, "★ EST · 2025 ★", CX, CY + 246, 30, c["bg"],
           letter_spacing=3, c=c, halo=False)
 
     _vignette(g, dwg, opacity=0.25)
@@ -1007,9 +1172,11 @@ def draw_boombox(dwg: svgwrite.Drawing, c: dict) -> None:
     # Perimeter title (top arc only — bottom stays clear of upside-down text)
     _arc_chars(g, dwg, BAND_NAME, r=394, centre_deg=0,
                font_size=50, fill=c["fg"], c=c, halo=False)
-    # Horizontal "EST · 2026" mark just below the body, inside the bottom rim
-    _text(g, dwg, "★ EST · 2026 ★", CX, CY + 478, 26, c["ac"],
-          letter_spacing=3, c=c, halo=False)
+    # Ribbon banner replaces the simple EST text
+    _ribbon(g, dwg, CX, CY + 478, 360, 46, fill=c["ac"], edge=c["bg"],
+             edge_w=2.5)
+    _text(g, dwg, "★ EST · 2025 ★", CX, CY + 478, 22, c["bg"],
+          letter_spacing=2, c=c, halo=False)
 
     _vignette(g, dwg, opacity=0.22)
 
@@ -1071,11 +1238,20 @@ def draw_lattice(dwg: svgwrite.Drawing, c: dict) -> None:
     # Cardinal accent diamonds on the inner thin ring
     _compass_marks(g, dwg, c["ac"], r=R - 62, size=10)
 
-    # Perimeter title (top arc only) + a horizontal star bar at the bottom
+    # Perimeter title (top arc only) + ribbon banner at bottom
     _arc_chars(g, dwg, BAND_NAME, r=R - 40, centre_deg=0,
                font_size=46, fill=c["fg"], c=c, halo=False)
-    _text(g, dwg, "★  ★  ★", CX, CY + 478, 30, c["ac"],
-          c=c, halo=False)
+    _ribbon(g, dwg, CX, CY + 470, 360, 52, fill=c["ac"], edge=c["bg"],
+             edge_w=2.5)
+    _text(g, dwg, "★ EST · 2025 ★", CX, CY + 470, 24, c["bg"],
+          letter_spacing=2, c=c, halo=False)
+
+    # Side ornaments at 3 and 9 o'clock
+    for deg in (90, 270):
+        rad = math.radians(deg - 90)
+        x = CX + (R - 80) * math.cos(rad)
+        y = CY + (R - 80) * math.sin(rad)
+        _starburst(g, dwg, x, y, r_out=14, r_in=5, points=8, fill=c["ac"])
 
     _vignette(g, dwg, opacity=0.25)
 
@@ -1116,13 +1292,13 @@ def draw_funkgrid(dwg: svgwrite.Drawing, c: dict) -> None:
             stroke_opacity=(0.85 if major else 0.45),
         ))
 
-    # 7×7 groove matrix — accent-filled hits, cream outlines on rests
+    # 7×7 groove matrix — sized to leave clear margins above and below.
     grid = 7
-    cell = 64
-    gap  = 12
-    total = grid * cell + (grid - 1) * gap
+    cell = 54
+    gap  = 10
+    total = grid * cell + (grid - 1) * gap     # 7*54 + 6*10 = 438
     ox = CX - total / 2
-    oy = CY - total / 2 - 6
+    oy = CY - total / 2                         # centred vertically
     pattern = [
         [1, 0, 0, 1, 0, 1, 0],
         [0, 1, 0, 0, 1, 0, 1],
@@ -1138,36 +1314,34 @@ def draw_funkgrid(dwg: svgwrite.Drawing, c: dict) -> None:
             y = oy + r_i * (cell + gap)
             if pattern[r_i][col]:
                 # Filled hit with inner highlight chip
-                g.add(dwg.rect(insert=(x, y), size=(cell, cell), rx=8,
+                g.add(dwg.rect(insert=(x, y), size=(cell, cell), rx=7,
                                fill=c["ac"]))
-                g.add(dwg.rect(insert=(x + 6, y + 6), size=(cell - 12, 8),
-                               rx=3, fill=c["fg"], fill_opacity=0.32))
+                g.add(dwg.rect(insert=(x + 5, y + 5), size=(cell - 10, 6),
+                               rx=2, fill=c["fg"], fill_opacity=0.32))
             else:
-                g.add(dwg.rect(insert=(x + 12, y + 12),
-                               size=(cell - 24, cell - 24),
-                               rx=6, fill="none", stroke=c["fg"],
-                               stroke_width=2, stroke_opacity=0.55))
+                g.add(dwg.rect(insert=(x + 10, y + 10),
+                               size=(cell - 20, cell - 20),
+                               rx=5, fill="none", stroke=c["fg"],
+                               stroke_width=1.6, stroke_opacity=0.55))
                 # tiny centre rest dot
                 g.add(dwg.circle(center=(x + cell / 2, y + cell / 2),
-                                 r=2.4, fill=c["fg"], fill_opacity=0.55))
+                                 r=2, fill=c["fg"], fill_opacity=0.55))
 
-    # Name ring + lockup banner (drawn ONCE, outside the loops)
+    # Perimeter title only — the band name is already on the arc, so no
+    # redundant centre banner.
     _arc_chars(g, dwg, BAND_NAME, r=398, centre_deg=0,
                font_size=50, fill=c["fg"], c=c, halo=False)
 
-    banner_w, banner_h = 360, 64
-    bx = CX - banner_w / 2
-    by = CY + 200
-    g.add(dwg.rect(insert=(bx, by), size=(banner_w, banner_h),
-                   rx=12, fill=c["ac"], stroke=c["bg"], stroke_width=3))
-    # banner notch ornaments
-    for nx in (bx - 14, bx + banner_w - 6):
-        g.add(dwg.polygon(points=[
-            (nx, by + 8), (nx + 20, by + banner_h / 2),
-            (nx, by + banner_h - 8),
-        ], fill=c["ac"]))
-    _text(g, dwg, "BAND", CX, by + banner_h / 2, 42, c["bg"],
-          letter_spacing=8, c=c, halo=False)
+    # Side starbursts at 9 and 3 o'clock
+    for deg in (90, 270):
+        rad = math.radians(deg - 90)
+        x = CX + 460 * math.cos(rad)
+        y = CY + 460 * math.sin(rad)
+        _starburst(g, dwg, x, y, r_out=14, r_in=5, points=8, fill=c["ac"])
+
+    # Bottom mark — clean horizontal text just below the grid
+    _text(g, dwg, "★ EST · 2025 ★", CX, CY + 290, 24, c["ac"],
+          letter_spacing=2, c=c, halo=False)
 
     _vignette(g, dwg, opacity=0.22)
 
@@ -1236,11 +1410,21 @@ def draw_signstamp(dwg: svgwrite.Drawing, c: dict) -> None:
                        font_weight="bold", fill=c["ac"], letter_spacing=10))
     g.add(plate)
 
-    # Perimeter title (top arc only) + a horizontal star bar at the bottom
+    # Perimeter title (top arc only) + ribbon banner + side starbursts
     _arc_chars(g, dwg, BAND_NAME, r=402, centre_deg=0,
                font_size=48, fill=c["fg"], c=c, halo=False)
-    _text(g, dwg, "★ EST · 2026 ★", CX, CY + 478, 28, c["ac"],
-          letter_spacing=3, c=c, halo=False)
+
+    _ribbon(g, dwg, CX, CY + 470, 360, 50, fill=c["ac"], edge=c["bg"],
+             edge_w=2.5)
+    _text(g, dwg, "★ EST · 2025 ★", CX, CY + 470, 24, c["bg"],
+          letter_spacing=2, c=c, halo=False)
+
+    # Side starbursts at 9 and 3 o'clock
+    for deg in (90, 270):
+        rad = math.radians(deg - 90)
+        x = CX + (R - 80) * math.cos(rad)
+        y = CY + (R - 80) * math.sin(rad)
+        _starburst(g, dwg, x, y, r_out=14, r_in=5, points=8, fill=c["ac"])
 
     _vignette(g, dwg, opacity=0.22)
 
