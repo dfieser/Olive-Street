@@ -76,7 +76,7 @@ diamond ornaments, and an "EST · 2026" mark for a polished printed feel.
 
 | Flag | Description |
 |------|-------------|
-| --style | wordmark, stacked, emblem, badge, block |
+| --style | wordmark, stacked, emblem, badge, seal, block |
 | --scheme | dark, light, tan, mono (default: dark) |
 | --font | Font family name (default: Georgia) |
 | --name | Override band name text |

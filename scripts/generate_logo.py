@@ -161,6 +161,50 @@ def _tick_row(dwg: svgwrite.Drawing, x_start: float, y: float, count: int,
     ]
 
 
+def _arc_text(dwg: svgwrite.Drawing, text: str, cx: float, cy: float,
+               r: float, centre_deg: float, font_size: float,
+               fill: str, font: str, letter_spacing: float = 0,
+               flip_bottom: bool = False) -> list:
+    """
+    Place each character along a circular arc, tangent to the ring and reading
+    upright. centre_deg=0 is top, 180 is bottom; bottom text is automatically
+    flipped so it reads right-side up.
+    """
+    def char_w(ch: str) -> float:
+        if ch == " ":      return font_size * 0.32
+        if ch in "IJijl1": return font_size * 0.34
+        if ch in "MWmw":   return font_size * 0.74
+        return font_size * 0.58
+
+    widths = [char_w(ch) for ch in text]
+    gap = letter_spacing
+    total = sum(widths) + gap * max(0, len(text) - 1)
+
+    flip = (90 < centre_deg < 270) and flip_bottom
+    direction = -1 if flip else 1
+    centre_math = math.radians(centre_deg) - math.pi / 2
+    # Start at the side the reader's eye expects: top arc starts from the left
+    # of the centre, bottom arc (flipped) starts from the right of the centre
+    # so each subsequent character moves visually rightward.
+    start_offset = -direction * (total / 2)
+    cur_rad = centre_math + start_offset / r
+
+    elements = []
+    for ch, cw in zip(text, widths):
+        mid = cur_rad + direction * (cw / 2) / r
+        x = cx + r * math.cos(mid)
+        y = cy + r * math.sin(mid)
+        rot = math.degrees(mid) + (90 if not flip else -90)
+        elements.append(dwg.text(
+            ch, insert=(x, y),
+            font_size=font_size, font_family=font, font_weight="bold",
+            fill=fill, text_anchor="middle", dominant_baseline="central",
+            transform=f"rotate({rot:.2f},{x:.2f},{y:.2f})",
+        ))
+        cur_rad += direction * (cw + gap) / r
+    return elements
+
+
 # ─── Style: Wordmark ──────────────────────────────────────────────────────────
 
 def draw_wordmark(dwg: svgwrite.Drawing, c: dict, w: float, h: float,
@@ -479,12 +523,174 @@ def draw_emblem(dwg: svgwrite.Drawing, c: dict, w: float, h: float,
 def draw_badge(dwg: svgwrite.Drawing, c: dict, w: float, h: float,
                band: str, font: str) -> None:
     """
-    Circular stamp badge — three-line stack (OLIVE / STREET / BAND) with
-    concentric rings, tick marks, and bracket diamonds at the cardinals.
+    Circular badge — perimeter arc text, dense calibration rim, sunburst
+    medallion, and a ribbon banner at the bottom.
     """
     cx, cy = w / 2, h / 2
-    r_outer = min(w, h) * 0.46
-    r_inner = r_outer * 0.82
+    r_outer = min(w, h) * 0.48
+    r_arc   = r_outer * 0.91     # radius for arc text
+    r_inner = r_outer * 0.76     # inner type field
+
+    fs_centre = r_inner * 0.34
+    tracking  = 6
+
+    _base(dwg, c, w, h)
+    _wash(dwg, c, w, h)
+
+    # Outer rim — thick + thin double ring
+    dwg.add(dwg.circle(center=(cx, cy), r=r_outer,
+                       fill="none", stroke=c["primary"], stroke_width=5))
+    dwg.add(dwg.circle(center=(cx, cy), r=r_outer - 8,
+                       fill="none", stroke=c["accent"],
+                       stroke_width=1.2, stroke_opacity=0.7))
+    dwg.add(dwg.circle(center=(cx, cy), r=r_outer - 22,
+                       fill="none", stroke=c["primary"],
+                       stroke_width=1.2, stroke_opacity=0.55))
+
+    # Inner type-field disc
+    dwg.add(dwg.circle(center=(cx, cy), r=r_inner,
+                       fill=c["background"]))
+    dwg.add(dwg.circle(center=(cx, cy), r=r_inner,
+                       fill="none", stroke=c["accent"], stroke_width=1.4))
+    dwg.add(dwg.circle(center=(cx, cy), r=r_inner - 6,
+                       fill="none", stroke=c["accent"],
+                       stroke_width=0.6, stroke_opacity=0.5))
+
+    # Calibration ticks — dense between rim and inner ring (skip top/bottom
+    # arc spans where text and ribbon will sit).
+    t_in  = r_outer - 24
+    t_out_minor = r_inner + 8
+    for i in range(120):
+        deg = i * 3
+        # Skip ranges where arc text (top) and ribbon (bottom) live
+        if 300 <= deg or deg <= 60:    continue   # top text band
+        if 120 <= deg <= 240:          continue   # bottom ribbon band
+        angle = math.radians(deg - 90)
+        major = (i % 5 == 0)
+        t_out = t_out_minor if not major else (t_out_minor + 4)
+        dwg.add(dwg.line(
+            (cx + t_in  * math.cos(angle), cy + t_in  * math.sin(angle)),
+            (cx + t_out * math.cos(angle), cy + t_out * math.sin(angle)),
+            stroke=c["accent"],
+            stroke_width=(1.8 if major else 0.7),
+            stroke_opacity=(0.85 if major else 0.4),
+        ))
+
+    # Arc text "OLIVE STREET BAND" along the top, between rim and inner ring
+    arc_fs = r_outer * 0.10
+    for el in _arc_text(dwg, band, cx, cy, r_arc, centre_deg=0,
+                         font_size=arc_fs, fill=c["primary"], font=font,
+                         letter_spacing=arc_fs * 0.12):
+        dwg.add(el)
+
+    # Bracket diamonds at the 9 o'clock and 3 o'clock positions
+    for deg in (90, 270):
+        angle = math.radians(deg - 90)
+        dx = cx + r_arc * math.cos(angle)
+        dy = cy + r_arc * math.sin(angle)
+        dwg.add(_diamond(dwg, dx, dy, 6, c["accent"]))
+
+    # Faint radial sunburst spokes between rings
+    # Faint sunburst spokes radiating from inside the inner ring
+    for i in range(48):
+        deg = i * 7.5
+        angle = math.radians(deg - 90)
+        s_in = r_inner * 0.42
+        s_out = r_inner * 0.95
+        dwg.add(dwg.line(
+            (cx + s_in  * math.cos(angle), cy + s_in  * math.sin(angle)),
+            (cx + s_out * math.cos(angle), cy + s_out * math.sin(angle)),
+            stroke=c["accent"], stroke_width=0.4, stroke_opacity=0.18,
+        ))
+
+    # Big starburst medallion behind the centre type
+    dwg.add(_starburst(dwg, cx, cy, r_out=r_inner * 0.65,
+                       r_in=r_inner * 0.32, points=12, fill=c["accent"]))
+    dwg.add(dwg.circle(center=(cx, cy), r=r_inner * 0.55,
+                       fill=c["background"], stroke=c["accent"],
+                       stroke_width=2))
+    dwg.add(dwg.circle(center=(cx, cy), r=r_inner * 0.49,
+                       fill="none", stroke=c["accent"],
+                       stroke_width=0.6, stroke_opacity=0.5))
+
+    # Centre word "OSB" monogram + sub-line
+    dwg.add(dwg.text(
+        "OSB", insert=(cx, cy - fs_centre * 0.08),
+        text_anchor="middle", dominant_baseline="middle",
+        font_family=font, font_size=fs_centre, font_weight="bold",
+        fill=c["primary"], letter_spacing=tracking,
+    ))
+    dwg.add(dwg.text(
+        "MUSIC", insert=(cx, cy + fs_centre * 0.62),
+        text_anchor="middle", dominant_baseline="middle",
+        font_family=font, font_size=fs_centre * 0.30,
+        fill=c["accent"], letter_spacing=4,
+    ))
+
+    # Hairline rule above MUSIC
+    rule_y = cy + fs_centre * 0.40
+    rule_w_inner = r_inner * 0.42
+    for x0, x1 in ((cx - rule_w_inner / 2, cx - 6),
+                   (cx + 6, cx + rule_w_inner / 2)):
+        dwg.add(dwg.line((x0, rule_y), (x1, rule_y),
+                         stroke=c["accent"], stroke_width=1,
+                         stroke_opacity=0.7))
+    dwg.add(dwg.circle(center=(cx, rule_y), r=2.4, fill=c["accent"]))
+
+    # Ribbon banner across the bottom of the badge
+    rib_w = r_outer * 1.55
+    rib_h = r_outer * 0.20
+    rib_y = cy + r_outer * 0.62
+    rib_x = cx - rib_w / 2
+    # Tail flourishes (triangle ends extending past the body)
+    tail = rib_h * 0.55
+    body = dwg.polygon(points=[
+        (rib_x,           rib_y),
+        (rib_x + tail,    rib_y + rib_h * 0.5),
+        (rib_x,           rib_y + rib_h),
+        (rib_x + rib_w,   rib_y + rib_h),
+        (rib_x + rib_w - tail, rib_y + rib_h * 0.5),
+        (rib_x + rib_w,   rib_y),
+    ], fill=c["accent"], stroke=c["primary"], stroke_width=2)
+    dwg.add(body)
+    # Inner stitch line
+    dwg.add(dwg.polygon(points=[
+        (rib_x + 6,       rib_y + 4),
+        (rib_x + tail,    rib_y + rib_h * 0.5),
+        (rib_x + 6,       rib_y + rib_h - 4),
+        (rib_x + rib_w - 6, rib_y + rib_h - 4),
+        (rib_x + rib_w - tail, rib_y + rib_h * 0.5),
+        (rib_x + rib_w - 6, rib_y + 4),
+    ], fill="none", stroke=c["primary"], stroke_width=0.8,
+                          stroke_opacity=0.6))
+    # Banner text
+    dwg.add(dwg.text(
+        "★ EST · 2026 ★",
+        insert=(cx, rib_y + rib_h / 2 + 1),
+        text_anchor="middle", dominant_baseline="middle",
+        font_family=font, font_size=rib_h * 0.42, font_weight="bold",
+        fill=c["primary"], letter_spacing=3,
+    ))
+
+    # Final hairline outer ring (drawn on top so the ribbon doesn't overflow visually)
+    dwg.add(dwg.circle(center=(cx, cy), r=r_outer + 4,
+                       fill="none", stroke=c["accent"],
+                       stroke_width=0.7, stroke_opacity=0.55))
+
+
+# ─── Style: Seal ──────────────────────────────────────────────────────────────
+
+def draw_seal(dwg: svgwrite.Drawing, c: dict, w: float, h: float,
+               band: str, font: str) -> None:
+    """
+    Circular government-style seal: BAND NAME arcing along the top, "EST · 2026"
+    arcing along the bottom (right-side up via flip), bold three-line stack
+    inside, with notched cardinals and a perimeter dot ring.
+    """
+    cx, cy = w / 2, h / 2
+    r_outer = min(w, h) * 0.48
+    r_text  = r_outer * 0.86
+    r_inner = r_outer * 0.74
 
     words = band.split()
     if len(words) >= 3:
@@ -494,77 +700,65 @@ def draw_badge(dwg: svgwrite.Drawing, c: dict, w: float, h: float,
     else:
         l1, l2, l3 = band, "", ""
 
-    fs1 = r_inner * 0.26
+    fs1 = r_inner * 0.30
     fs2 = r_inner * 0.22
-    tracking = 4
 
     _base(dwg, c, w, h)
     _wash(dwg, c, w, h)
 
-    # Solid centre disc keeps the type field clean
-    dwg.add(dwg.circle(center=(cx, cy), r=r_inner * 0.99,
-                       fill=c["background"]))
-
-    # Outer ring + thin highlight ring just inside it
+    # Triple ring frame
     dwg.add(dwg.circle(center=(cx, cy), r=r_outer,
                        fill="none", stroke=c["primary"], stroke_width=4))
-    dwg.add(dwg.circle(center=(cx, cy), r=r_outer - 6,
-                       fill="none", stroke=c["accent"],
-                       stroke_width=1, stroke_opacity=0.6))
-    # Inner ring
+    dwg.add(dwg.circle(center=(cx, cy), r=r_outer - 7,
+                       fill="none", stroke=c["primary"],
+                       stroke_width=1, stroke_opacity=0.55))
     dwg.add(dwg.circle(center=(cx, cy), r=r_inner,
-                       fill="none", stroke=c["accent"], stroke_width=1.2))
+                       fill="none", stroke=c["accent"], stroke_width=1.6))
+    dwg.add(dwg.circle(center=(cx, cy), r=r_inner - 6,
+                       fill="none", stroke=c["accent"],
+                       stroke_width=0.6, stroke_opacity=0.55))
 
-    # Tick marks every 6° (60 minor + 12 major), majors at every 30°
-    t_in  = r_outer - 12
-    for i in range(60):
-        deg = i * 6
-        angle = math.radians(deg)
-        major = (deg % 30 == 0)
-        cardinal = (deg % 90 == 0)
-        t_out = r_outer - (34 if cardinal else (24 if major else 16))
-        dwg.add(dwg.line(
-            (cx + t_in  * math.cos(angle), cy + t_in  * math.sin(angle)),
-            (cx + t_out * math.cos(angle), cy + t_out * math.sin(angle)),
-            stroke=c["accent"],
-            stroke_width=(2.6 if cardinal else (1.6 if major else 0.8)),
-            stroke_opacity=(0.95 if major else 0.45),
-        ))
+    # Perimeter dot ring (on the outer frame)
+    n_dots = 60
+    for i in range(n_dots):
+        angle = math.radians(i * (360 / n_dots) - 90)
+        # Skip top arc (0±55°) and bottom arc (180±35°) to avoid colliding text
+        deg = (i * (360 / n_dots)) % 360
+        if deg <= 55 or deg >= 305:    continue
+        if 145 <= deg <= 215:          continue
+        x = cx + (r_outer - 14) * math.cos(angle)
+        y = cy + (r_outer - 14) * math.sin(angle)
+        dwg.add(dwg.circle(center=(x, y), r=1.6,
+                           fill=c["accent"], fill_opacity=0.7))
 
-    # Faint radial sunburst spokes between rings
-    for i in range(36):
-        deg = i * 10
-        if deg % 30 == 0:
-            continue
-        angle = math.radians(deg)
-        s_in = r_inner * 0.96
-        s_out = r_inner + 6
-        dwg.add(dwg.line(
-            (cx + s_in  * math.cos(angle), cy + s_in  * math.sin(angle)),
-            (cx + s_out * math.cos(angle), cy + s_out * math.sin(angle)),
-            stroke=c["accent"], stroke_width=0.5, stroke_opacity=0.35,
-        ))
+    # Cardinal notches — small filled triangles cutting into the inner ring
+    for deg in (90, 270):
+        angle = math.radians(deg - 90)
+        x = cx + r_inner * math.cos(angle)
+        y = cy + r_inner * math.sin(angle)
+        dwg.add(_diamond(dwg, x, y, 7, c["accent"]))
+        dwg.add(dwg.circle(center=(x, y), r=2.2, fill=c["background"]))
 
-    # Diamond ornaments at the cardinals (sit on the inner ring)
-    for deg in (0, 90, 180, 270):
-        angle = math.radians(deg)
-        dx = cx + r_inner * math.cos(angle)
-        dy = cy + r_inner * math.sin(angle)
-        dwg.add(_diamond(dwg, dx, dy, 6, c["accent"]))
-        dwg.add(dwg.circle(center=(dx, dy), r=2, fill=c["background"]))
+    # Arc text — band name across the top
+    arc_fs_top = r_outer * 0.10
+    for el in _arc_text(dwg, band, cx, cy, r_text, centre_deg=0,
+                         font_size=arc_fs_top, fill=c["primary"], font=font,
+                         letter_spacing=arc_fs_top * 0.18):
+        dwg.add(el)
 
-    # Bracket diamonds at the diagonals (at 45/135/225/315°)
-    for deg in (45, 135, 225, 315):
-        angle = math.radians(deg)
-        dx = cx + r_inner * math.cos(angle)
-        dy = cy + r_inner * math.sin(angle)
-        dwg.add(dwg.circle(center=(dx, dy), r=4, fill=c["accent"]))
-        dwg.add(dwg.circle(center=(dx, dy), r=1.5, fill=c["background"]))
+    # Arc text — EST mark along the bottom (flipped to read upright)
+    arc_fs_bot = r_outer * 0.075
+    for el in _arc_text(dwg, "★ EST · 2026 · MUSIC ★", cx, cy, r_text,
+                         centre_deg=180, font_size=arc_fs_bot,
+                         fill=c["accent"], font=font,
+                         letter_spacing=arc_fs_bot * 0.20,
+                         flip_bottom=True):
+        dwg.add(el)
 
-    # Three-line stack
-    y1 = cy - fs1 * 1.05
+    # Three-line centre stack
+    y1 = cy - fs1 * 1.0
     y2 = cy
-    y3 = cy + fs1 * 1.05
+    y3 = cy + fs1 * 1.0
     for txt, y, fs, fill in (
         (l1, y1, fs1, c["primary"]),
         (l2, y2, fs1, c["primary"]),
@@ -576,33 +770,14 @@ def draw_badge(dwg: svgwrite.Drawing, c: dict, w: float, h: float,
             txt, insert=(cx, y),
             text_anchor="middle", dominant_baseline="middle",
             font_family=font, font_size=fs, font_weight="bold",
-            fill=fill, letter_spacing=tracking,
+            fill=fill, letter_spacing=4,
         ))
 
-    # Two thin rules flanking the middle word
-    rule_w = r_inner * 0.55
-    for ry in (y1 + fs1 * 0.62, y3 - fs2 * 0.62):
-        for x0, x1 in ((cx - rule_w / 2, cx - 8),
-                        (cx + 8, cx + rule_w / 2)):
-            dwg.add(dwg.line((x0, ry), (x1, ry),
-                             stroke=c["accent"], stroke_width=1.2,
-                             stroke_opacity=0.7))
-        dwg.add(dwg.circle(center=(cx, ry), r=3, fill=c["accent"]))
-
-    # EST · 2026 arc-position-substitute: a horizontal mark at top
-    dwg.add(_starburst(dwg, cx, cy - r_inner * 0.78,
-                       r_out=8, r_in=3, points=5, fill=c["accent"]))
-    dwg.add(_starburst(dwg, cx, cy + r_inner * 0.78,
-                       r_out=8, r_in=3, points=5, fill=c["accent"]))
-
-    # Tiny "EST · 2026" set just above the third (BAND) line
-    dwg.add(dwg.text(
-        "EST · 2026",
-        insert=(cx, cy + r_inner * 0.92),
-        text_anchor="middle", dominant_baseline="middle",
-        font_family=font, font_size=max(8, fs2 * 0.30),
-        fill=c["secondary"], letter_spacing=2,
-    ))
+    # Centre starburst between OLIVE and STREET (subtle behind the type)
+    dwg.add(_starburst(dwg, cx, y1 + fs1 * 0.55, r_out=6, r_in=2.5,
+                       points=4, fill=c["accent"]))
+    dwg.add(_starburst(dwg, cx, y3 - fs2 * 0.55, r_out=6, r_in=2.5,
+                       points=4, fill=c["accent"]))
 
 
 # ─── Style: Block ─────────────────────────────────────────────────────────────
@@ -710,6 +885,7 @@ STYLE_FUNCS = {
     "stacked":  (draw_stacked,  500, 420),
     "emblem":   (draw_emblem,   600, 480),
     "badge":    (draw_badge,    600, 600),
+    "seal":     (draw_seal,     600, 600),
     "block":    (draw_block,    800, 300),
 }
 
