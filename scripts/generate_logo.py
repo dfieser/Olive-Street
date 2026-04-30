@@ -894,13 +894,30 @@ def generate(style: str, scheme: str, font: str, export_png: bool,
     print(f"  [{style}/{scheme}] SVG -> {out_path.relative_to(ROOT)}")
 
     if export_png:
+        png_path = out_path.with_suffix(".png")
         try:
-            import cairosvg
-            png_path = out_path.with_suffix(".png")
-            cairosvg.svg2png(url=str(out_path), write_to=str(png_path), scale=2.0)
+            from resvg_py import svg_to_bytes
+            png_path.write_bytes(svg_to_bytes(
+                svg_path=str(out_path),
+                width=w * 2,
+                height=h * 2,
+            ))
             print(f"  [{style}/{scheme}] PNG -> {png_path.relative_to(ROOT)}")
         except ImportError:
-            print("  (PNG skipped — run: pip install cairosvg)")
+            try:
+                import cairosvg
+                cairosvg.svg2png(url=str(out_path), write_to=str(png_path), scale=2.0)
+                print(f"  [{style}/{scheme}] PNG -> {png_path.relative_to(ROOT)}")
+            except Exception as exc:
+                print(f"  (PNG skipped — install resvg_py or a working cairosvg backend: {exc})")
+        except Exception as exc:
+            print(f"  (resvg_py export failed: {exc} — trying cairosvg)")
+            try:
+                import cairosvg
+                cairosvg.svg2png(url=str(out_path), write_to=str(png_path), scale=2.0)
+                print(f"  [{style}/{scheme}] PNG -> {png_path.relative_to(ROOT)}")
+            except Exception as fallback_exc:
+                print(f"  (PNG skipped — install resvg_py or a working cairosvg backend: {fallback_exc})")
 
     return out_path
 
@@ -920,7 +937,7 @@ def main():
     parser.add_argument("--all",    action="store_true",
                         help="Generate every style × every scheme")
     parser.add_argument("--png",    action="store_true",
-                        help="Also export PNG at 2× resolution (requires cairosvg)")
+                        help="Also export PNG at 2× resolution")
     args = parser.parse_args()
 
     if args.all:

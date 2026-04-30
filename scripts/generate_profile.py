@@ -1455,14 +1455,28 @@ def _out_path(design: str, scheme: str) -> Path:
 
 
 def _export_png(svg_path: Path) -> None:
+    png = svg_path.with_suffix(".png")
+    try:
+        from resvg_py import svg_to_bytes  # type: ignore
+        png.write_bytes(svg_to_bytes(
+            svg_path=str(svg_path),
+            width=SIZE * 2,
+            height=SIZE * 2,
+        ))
+        print(f"  saved → {png.name}")
+        return
+    except ImportError:
+        pass
+    except Exception as exc:
+        print(f"  (resvg_py export failed: {exc} — trying cairosvg)")
+
     try:
         import cairosvg  # type: ignore
-        png = svg_path.with_suffix(".png")
         cairosvg.svg2png(url=str(svg_path), write_to=str(png),
                          output_width=SIZE * 2, output_height=SIZE * 2)
         print(f"  saved → {png.name}")
-    except ImportError:
-        print("  (cairosvg not installed — skipping PNG export)")
+    except Exception as exc:
+        print(f"  (PNG skipped — install resvg_py or a working cairosvg backend: {exc})")
 
 
 def generate(design: str, scheme: str, png: bool) -> Path:
@@ -1489,7 +1503,7 @@ def main() -> None:
     p.add_argument("--all", dest="all_designs", action="store_true",
                    help="Generate all designs x 4 schemes")
     p.add_argument("--png", action="store_true",
-                   help="Also export PNG at 2× via cairosvg")
+                   help="Also export PNG at 2× resolution")
     args = p.parse_args()
 
     if args.all_designs:

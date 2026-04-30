@@ -17,6 +17,9 @@ python scripts/generate_logo.py --all
 # Circular profile images (5 designs x 4 schemes)
 python scripts/generate_profile.py --all
 
+# Export a transparent PNG version
+python scripts/generate_profile.py --design stack --scheme dark --png
+
 # One album-art file (3000x3000)
 python scripts/generate_asset.py --type album_art --bg geometric --title "First Light"
 
@@ -197,7 +200,11 @@ Important current behavior:
 
 ## PNG Export
 
-Install cairosvg for --png support:
+Use PNG when you need transparency. JPG does not support transparent areas, so it will flatten invisible layers into a solid background.
+
+`--png` writes a PNG alongside the SVG and preserves transparent areas outside the circular badge artwork.
+
+The workspace now installs a portable PNG backend by default from [requirements.txt](requirements.txt). If you want a secondary fallback backend, you can also install CairoSVG:
 
 ```powershell
 pip install cairosvg

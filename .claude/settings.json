@@ -34,7 +34,18 @@
       "Bash(PYTHONIOENCODING=utf-8 python scripts/generate_asset.py --type album_art --bg geometric --title \"First Light\")",
       "Bash(PYTHONIOENCODING=utf-8 python scripts/generate_asset.py --type social --platform instagram --bg halftone)",
       "Bash(magick -background none -density 100 output/fliers/20260428_000854_flier_geometric_dark.svg -resize 480x480 _preview/asset_album.png)",
-      "Bash(magick -background none -density 200 output/posts/20260428_000854_post_instagram_halftone_dark.svg -resize 480x480 _preview/asset_post.png)"
+      "Bash(magick -background none -density 200 output/posts/20260428_000854_post_instagram_halftone_dark.svg -resize 480x480 _preview/asset_post.png)",
+      "Bash(awk -F'_' '{print $1\"_\"$2}')",
+      "Bash(magick -background none -density 300 output/profiles/*_logo_seal_dark.svg -resize 720x720 _preview/full_seal_dark.png)",
+      "Bash(magick -background none -density 300 output/profiles/*_logo_badge_dark.svg -resize 720x720 _preview/full_badge_dark.png)",
+      "Bash(rm -f output/profiles/*_logo_*.svg)",
+      "Bash(PYTHONIOENCODING=utf-8 python scripts/generate_logo.py --style seal --scheme dark)",
+      "Bash(PYTHONIOENCODING=utf-8 python scripts/generate_logo.py --style badge --scheme dark)",
+      "Bash(magick -background none -density 300 output/profiles/*_profile_split_dark.svg -resize 720x720 _preview/full_split.png)",
+      "Bash(magick -background none -density 300 output/profiles/*_profile_target_dark.svg -resize 720x720 _preview/full_target.png)",
+      "Bash(magick -background none -density 300 output/profiles/*_profile_stack_dark.svg -resize 720x720 _preview/full_stack.png)",
+      "Bash(magick -background none -density 300 output/profiles/*_profile_funkgrid_dark.svg -resize 720x720 _preview/full_funkgrid.png)",
+      "Bash(python -c \"from PIL import Image; print\\('Pillow OK'\\)\")"
     ]
   }
 }

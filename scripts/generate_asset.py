@@ -362,13 +362,30 @@ def generate(asset_type: str, platform: str, bg: str, scheme: str,
     print(f"  [{label}/{bg}/{scheme}] SVG  {w}×{h}  -> {out_path.relative_to(ROOT)}")
 
     if export_png:
+        png_path = out_path.with_suffix(".png")
         try:
-            import cairosvg
-            png_path = out_path.with_suffix(".png")
-            cairosvg.svg2png(url=str(out_path), write_to=str(png_path))
+            from resvg_py import svg_to_bytes
+            png_path.write_bytes(svg_to_bytes(
+                svg_path=str(out_path),
+                width=w,
+                height=h,
+            ))
             print(f"  [{label}/{bg}/{scheme}] PNG -> {png_path.relative_to(ROOT)}")
         except ImportError:
-            print("  (PNG skipped — run: pip install cairosvg)")
+            try:
+                import cairosvg
+                cairosvg.svg2png(url=str(out_path), write_to=str(png_path))
+                print(f"  [{label}/{bg}/{scheme}] PNG -> {png_path.relative_to(ROOT)}")
+            except Exception as exc:
+                print(f"  (PNG skipped — install resvg_py or a working cairosvg backend: {exc})")
+        except Exception as exc:
+            print(f"  (resvg_py export failed: {exc} — trying cairosvg)")
+            try:
+                import cairosvg
+                cairosvg.svg2png(url=str(out_path), write_to=str(png_path))
+                print(f"  [{label}/{bg}/{scheme}] PNG -> {png_path.relative_to(ROOT)}")
+            except Exception as fallback_exc:
+                print(f"  (PNG skipped — install resvg_py or a working cairosvg backend: {fallback_exc})")
 
     return out_path
 
@@ -394,7 +411,7 @@ def main():
     parser.add_argument("--no-text", action="store_true",
                         help="Omit all text overlays")
     parser.add_argument("--png", action="store_true",
-                        help="Also export PNG (requires cairosvg)")
+                        help="Also export PNG")
     args = parser.parse_args()
 
     band  = "" if args.no_text else args.name
