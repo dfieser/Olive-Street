@@ -125,13 +125,50 @@ def _diamond(dwg: svgwrite.Drawing, x: float, y: float, size: float,
                        fill=fill)
 
 
+def _starburst(dwg: svgwrite.Drawing, x: float, y: float, r_out: float,
+                r_in: float, points: int, fill: str
+                ) -> "svgwrite.shapes.Polygon":
+    pts = []
+    for i in range(points * 2):
+        rr = r_out if i % 2 == 0 else r_in
+        a = math.radians(i * (360 / (points * 2)) - 90)
+        pts.append((x + rr * math.cos(a), y + rr * math.sin(a)))
+    return dwg.polygon(points=pts, fill=fill)
+
+
+def _corner_bracket(dwg: svgwrite.Drawing, x: float, y: float,
+                     length: float, sx: int, sy: int,
+                     stroke: str, width: float
+                     ) -> list:
+    """L-shaped bracket starting at (x,y); sx/sy in {-1, 1} pick the quadrant."""
+    return [
+        dwg.line((x, y), (x + sx * length, y),
+                 stroke=stroke, stroke_width=width, stroke_linecap="square"),
+        dwg.line((x, y), (x, y + sy * length),
+                 stroke=stroke, stroke_width=width, stroke_linecap="square"),
+    ]
+
+
+def _tick_row(dwg: svgwrite.Drawing, x_start: float, y: float, count: int,
+               step: float, height: float, stroke: str,
+               width: float = 1, opacity: float = 0.6) -> list:
+    """A row of small vertical tick marks (calibration feel)."""
+    return [
+        dwg.line((x_start + i * step, y - height / 2),
+                 (x_start + i * step, y + height / 2),
+                 stroke=stroke, stroke_width=width, stroke_opacity=opacity)
+        for i in range(count)
+    ]
+
+
 # ─── Style: Wordmark ──────────────────────────────────────────────────────────
 
 def draw_wordmark(dwg: svgwrite.Drawing, c: dict, w: float, h: float,
                   band: str, font: str) -> None:
     """
-    Centered band name between two horizontal rules.
-    Diamond ornaments anchor each rule end. Faint outer frame for depth.
+    Centered band name between two diamond-anchored rules. Side ornament
+    panels carry small starbursts + EST micro-mark; corner brackets and a
+    faint outer frame add stamped-paper depth.
     """
     cx, cy = w / 2, h / 2
     font_size = h * 0.20
@@ -140,24 +177,53 @@ def draw_wordmark(dwg: svgwrite.Drawing, c: dict, w: float, h: float,
     _base(dwg, c, w, h)
     _wash(dwg, c, w, h)
 
-    # Faint outer frame
+    # Faint double frame
     dwg.add(dwg.rect(
         (w * 0.025, h * 0.08), (w * 0.95, h * 0.84),
         fill="none", stroke=c["secondary"],
-        stroke_width=0.6, stroke_opacity=0.45,
+        stroke_width=0.7, stroke_opacity=0.55,
+    ))
+    dwg.add(dwg.rect(
+        (w * 0.04, h * 0.14), (w * 0.92, h * 0.72),
+        fill="none", stroke=c["secondary"],
+        stroke_width=0.5, stroke_opacity=0.35,
     ))
 
-    # Rules with diamond + dot end ornaments
-    rule_margin = w * 0.07
+    # Corner brackets
+    bx0, by0 = w * 0.025, h * 0.08
+    bx1, by1 = w * 0.975, h * 0.92
+    bracket_len = h * 0.10
+    for x, y, sx, sy in ((bx0, by0, 1, 1), (bx1, by0, -1, 1),
+                         (bx0, by1, 1, -1), (bx1, by1, -1, -1)):
+        for el in _corner_bracket(dwg, x, y, bracket_len, sx, sy,
+                                   c["accent"], 2):
+            dwg.add(el)
+
+    # Rules with diamond ends — stop short to leave room for side ornaments
+    rule_margin = w * 0.13
     rule_y_top    = cy - font_size * 0.95
     rule_y_bottom = cy + font_size * 0.78
     for ry in (rule_y_top, rule_y_bottom):
         dwg.add(dwg.line(
-            (rule_margin + 12, ry), (w - rule_margin - 12, ry),
-            stroke=c["accent"], stroke_width=1.6,
+            (rule_margin + 14, ry), (w - rule_margin - 14, ry),
+            stroke=c["accent"], stroke_width=1.8,
         ))
         for dx in (rule_margin, w - rule_margin):
             dwg.add(_diamond(dwg, dx, ry, 5, c["accent"]))
+
+    # Side ornaments: small starbursts framing the wordmark
+    for sx_pos in (rule_margin - 18, w - rule_margin + 18):
+        dwg.add(_starburst(dwg, sx_pos, cy, r_out=10, r_in=4,
+                           points=4, fill=c["accent"]))
+
+    # Tick rows just above and below the rules — calibration detail
+    tick_count = 9
+    tick_step = (w - rule_margin * 2 - 28) / (tick_count - 1)
+    for ty in (rule_y_top - 8, rule_y_bottom + 8):
+        for el in _tick_row(dwg, rule_margin + 14, ty, tick_count,
+                             tick_step, 5, c["accent"],
+                             width=0.9, opacity=0.45):
+            dwg.add(el)
 
     # Band name
     dwg.add(dwg.text(
@@ -183,14 +249,25 @@ def draw_wordmark(dwg: svgwrite.Drawing, c: dict, w: float, h: float,
         fill=c["accent"], letter_spacing=2,
     ))
 
+    # MUSIC sub-mark on the bottom rule
+    dwg.add(dwg.rect((cx - 36, rule_y_bottom - 9), (72, 18),
+                     fill=c["background"]))
+    dwg.add(dwg.text(
+        "MUSIC",
+        insert=(cx, rule_y_bottom + 1),
+        text_anchor="middle", dominant_baseline="middle",
+        font_family=font, font_size=11,
+        fill=c["secondary"], letter_spacing=3,
+    ))
+
 
 # ─── Style: Stacked ───────────────────────────────────────────────────────────
 
 def draw_stacked(dwg: svgwrite.Drawing, c: dict, w: float, h: float,
                  band: str, font: str) -> None:
     """
-    Three-line stack OLIVE / STREET / BAND with diamond-rule dividers.
-    BAND is rendered in the accent colour as a punctuation chord.
+    Three-line stack OLIVE / STREET / BAND with diamond-rule dividers,
+    corner brackets, starburst crown, and a tick-mark calibration band.
     """
     words = band.split()
     if len(words) >= 3:
@@ -201,15 +278,40 @@ def draw_stacked(dwg: svgwrite.Drawing, c: dict, w: float, h: float,
         l1, l2, l3 = band, "", ""
 
     cx = w / 2
-    fs1 = h * 0.18      # OLIVE / STREET
-    fs2 = h * 0.16      # BAND (slightly smaller as accent)
+    fs1 = h * 0.16      # OLIVE / STREET
+    fs2 = h * 0.14      # BAND (smaller, accent colour)
 
     y_top  = h * 0.30
-    y_mid  = h * 0.50
-    y_bot  = h * 0.78
+    y_mid  = h * 0.48
+    y_bot  = h * 0.74
 
     _base(dwg, c, w, h)
     _wash(dwg, c, w, h)
+
+    # Double frame
+    dwg.add(dwg.rect((w * 0.05, h * 0.05), (w * 0.90, h * 0.90),
+                     fill="none", stroke=c["secondary"],
+                     stroke_width=0.7, stroke_opacity=0.55))
+    dwg.add(dwg.rect((w * 0.075, h * 0.075), (w * 0.85, h * 0.85),
+                     fill="none", stroke=c["secondary"],
+                     stroke_width=0.4, stroke_opacity=0.35))
+
+    # Corner brackets in accent
+    bx0, by0 = w * 0.05, h * 0.05
+    bx1, by1 = w * 0.95, h * 0.95
+    bl = min(w, h) * 0.06
+    for x, y, sx, sy in ((bx0, by0, 1, 1), (bx1, by0, -1, 1),
+                         (bx0, by1, 1, -1), (bx1, by1, -1, -1)):
+        for el in _corner_bracket(dwg, x, y, bl, sx, sy, c["accent"], 2):
+            dwg.add(el)
+        dwg.add(dwg.circle(center=(x, y), r=2.5, fill=c["accent"]))
+
+    # Starburst crown above OLIVE
+    dwg.add(_starburst(dwg, cx, h * 0.16, r_out=10, r_in=4,
+                       points=4, fill=c["accent"]))
+    # Mirror starburst at the bottom
+    dwg.add(_starburst(dwg, cx, h * 0.88, r_out=10, r_in=4,
+                       points=4, fill=c["accent"]))
 
     # Two diamond-anchored rules between the lines
     rule_w = w * 0.62
@@ -220,8 +322,12 @@ def draw_stacked(dwg: svgwrite.Drawing, c: dict, w: float, h: float,
         for sx0, sx1 in ((x0, cx - diamond * 2),
                           (cx + diamond * 2, x1)):
             dwg.add(dwg.line((sx0, div_y), (sx1, div_y),
-                             stroke=c["accent"], stroke_width=1.5))
+                             stroke=c["accent"], stroke_width=1.6))
         dwg.add(_diamond(dwg, cx, div_y, diamond, c["accent"]))
+        # Tiny dots flanking the diamond
+        for sd in (-diamond * 4, diamond * 4):
+            dwg.add(dwg.circle(center=(cx + sd, div_y), r=2,
+                               fill=c["accent"], fill_opacity=0.7))
 
     # Three lines
     for txt, y, fs, fill in (
@@ -238,10 +344,14 @@ def draw_stacked(dwg: svgwrite.Drawing, c: dict, w: float, h: float,
             fill=fill, letter_spacing=fs * 0.10,
         ))
 
-    # Faint outer frame
-    dwg.add(dwg.rect((w * 0.05, h * 0.05), (w * 0.90, h * 0.90),
-                     fill="none", stroke=c["secondary"],
-                     stroke_width=0.6, stroke_opacity=0.45))
+    # EST · 2026 micro-mark just below the bottom rule
+    dwg.add(dwg.text(
+        "★ EST · 2026 ★",
+        insert=(cx, h * 0.92),
+        text_anchor="middle", dominant_baseline="middle",
+        font_family=font, font_size=10,
+        fill=c["secondary"], letter_spacing=2,
+    ))
 
 
 # ─── Style: Emblem ────────────────────────────────────────────────────────────
@@ -304,6 +414,19 @@ def draw_emblem(dwg: svgwrite.Drawing, c: dict, w: float, h: float,
                          stroke=c["accent"], stroke_width=2.5))
         dwg.add(dwg.circle(center=(fx, fy), r=3.5, fill=c["accent"]))
 
+    # Starburst crowns at top centre of the inner frame
+    crown_y = frame_my + 22
+    dwg.add(_starburst(dwg, cx, crown_y, r_out=10, r_in=4,
+                       points=5, fill=c["accent"]))
+    # Calibration tick row beneath the crown
+    tick_count = 13
+    tick_w = frame_w * 0.42
+    tick_step = tick_w / (tick_count - 1)
+    tick_x0 = cx - tick_w / 2
+    for el in _tick_row(dwg, tick_x0, crown_y + 16, tick_count, tick_step,
+                         6, c["accent"], width=1, opacity=0.55):
+        dwg.add(el)
+
     # Top line — OLIVE STREET
     y1 = cy - fs1 * 0.2
     dwg.add(dwg.text(
@@ -313,14 +436,17 @@ def draw_emblem(dwg: svgwrite.Drawing, c: dict, w: float, h: float,
         fill=c["primary"], letter_spacing=tracking1,
     ))
 
-    # Divider rule with diamond
+    # Divider rule with diamond + flanking starbursts
     rule_y = y1 + fs1 * 0.85
-    half_rule = w * 0.18
+    half_rule = w * 0.22
     for x0, x1 in ((cx - half_rule, cx - 14),
                    (cx + 14, cx + half_rule)):
         dwg.add(dwg.line((x0, rule_y), (x1, rule_y),
-                         stroke=c["accent"], stroke_width=1.4))
-    dwg.add(_diamond(dwg, cx, rule_y, 5, c["accent"]))
+                         stroke=c["accent"], stroke_width=1.6))
+    dwg.add(_diamond(dwg, cx, rule_y, 6, c["accent"]))
+    for x in (cx - half_rule, cx + half_rule):
+        dwg.add(_starburst(dwg, x, rule_y, r_out=7, r_in=3,
+                           points=4, fill=c["accent"]))
 
     # Bottom line — BAND
     y2 = rule_y + fs2 * 0.95
@@ -332,10 +458,16 @@ def draw_emblem(dwg: svgwrite.Drawing, c: dict, w: float, h: float,
             fill=c["accent"], letter_spacing=tracking2,
         ))
 
+    # Mirror tick row above the EST mark
+    tick_y_bot = frame_my + frame_h - 32
+    for el in _tick_row(dwg, tick_x0, tick_y_bot, tick_count, tick_step,
+                         6, c["accent"], width=1, opacity=0.55):
+        dwg.add(el)
+
     # EST · 2026 micro-mark at bottom of frame
     dwg.add(dwg.text(
-        "★ EST · 2026 ★",
-        insert=(cx, frame_my + frame_h - 18),
+        "★ EST · 2026 ★ MUSIC ★",
+        insert=(cx, frame_my + frame_h - 16),
         text_anchor="middle", dominant_baseline="middle",
         font_family=font, font_size=11,
         fill=c["secondary"], letter_spacing=2,
@@ -383,19 +515,34 @@ def draw_badge(dwg: svgwrite.Drawing, c: dict, w: float, h: float,
     dwg.add(dwg.circle(center=(cx, cy), r=r_inner,
                        fill="none", stroke=c["accent"], stroke_width=1.2))
 
-    # Tick marks every 15°, majors at cardinals
+    # Tick marks every 6° (60 minor + 12 major), majors at every 30°
     t_in  = r_outer - 12
-    for i in range(24):
-        deg = i * 15
+    for i in range(60):
+        deg = i * 6
         angle = math.radians(deg)
-        major = (deg % 90 == 0)
-        t_out = r_outer - (32 if major else 18)
+        major = (deg % 30 == 0)
+        cardinal = (deg % 90 == 0)
+        t_out = r_outer - (34 if cardinal else (24 if major else 16))
         dwg.add(dwg.line(
             (cx + t_in  * math.cos(angle), cy + t_in  * math.sin(angle)),
             (cx + t_out * math.cos(angle), cy + t_out * math.sin(angle)),
             stroke=c["accent"],
-            stroke_width=(2.4 if major else 1),
-            stroke_opacity=(0.95 if major else 0.55),
+            stroke_width=(2.6 if cardinal else (1.6 if major else 0.8)),
+            stroke_opacity=(0.95 if major else 0.45),
+        ))
+
+    # Faint radial sunburst spokes between rings
+    for i in range(36):
+        deg = i * 10
+        if deg % 30 == 0:
+            continue
+        angle = math.radians(deg)
+        s_in = r_inner * 0.96
+        s_out = r_inner + 6
+        dwg.add(dwg.line(
+            (cx + s_in  * math.cos(angle), cy + s_in  * math.sin(angle)),
+            (cx + s_out * math.cos(angle), cy + s_out * math.sin(angle)),
+            stroke=c["accent"], stroke_width=0.5, stroke_opacity=0.35,
         ))
 
     # Diamond ornaments at the cardinals (sit on the inner ring)
@@ -403,7 +550,16 @@ def draw_badge(dwg: svgwrite.Drawing, c: dict, w: float, h: float,
         angle = math.radians(deg)
         dx = cx + r_inner * math.cos(angle)
         dy = cy + r_inner * math.sin(angle)
-        dwg.add(_diamond(dwg, dx, dy, 5, c["accent"]))
+        dwg.add(_diamond(dwg, dx, dy, 6, c["accent"]))
+        dwg.add(dwg.circle(center=(dx, dy), r=2, fill=c["background"]))
+
+    # Bracket diamonds at the diagonals (at 45/135/225/315°)
+    for deg in (45, 135, 225, 315):
+        angle = math.radians(deg)
+        dx = cx + r_inner * math.cos(angle)
+        dy = cy + r_inner * math.sin(angle)
+        dwg.add(dwg.circle(center=(dx, dy), r=4, fill=c["accent"]))
+        dwg.add(dwg.circle(center=(dx, dy), r=1.5, fill=c["background"]))
 
     # Three-line stack
     y1 = cy - fs1 * 1.05
@@ -429,9 +585,24 @@ def draw_badge(dwg: svgwrite.Drawing, c: dict, w: float, h: float,
         for x0, x1 in ((cx - rule_w / 2, cx - 8),
                         (cx + 8, cx + rule_w / 2)):
             dwg.add(dwg.line((x0, ry), (x1, ry),
-                             stroke=c["accent"], stroke_width=1,
-                             stroke_opacity=0.65))
-        dwg.add(dwg.circle(center=(cx, ry), r=2.5, fill=c["accent"]))
+                             stroke=c["accent"], stroke_width=1.2,
+                             stroke_opacity=0.7))
+        dwg.add(dwg.circle(center=(cx, ry), r=3, fill=c["accent"]))
+
+    # EST · 2026 arc-position-substitute: a horizontal mark at top
+    dwg.add(_starburst(dwg, cx, cy - r_inner * 0.78,
+                       r_out=8, r_in=3, points=5, fill=c["accent"]))
+    dwg.add(_starburst(dwg, cx, cy + r_inner * 0.78,
+                       r_out=8, r_in=3, points=5, fill=c["accent"]))
+
+    # Tiny "EST · 2026" set just above the third (BAND) line
+    dwg.add(dwg.text(
+        "EST · 2026",
+        insert=(cx, cy + r_inner * 0.92),
+        text_anchor="middle", dominant_baseline="middle",
+        font_family=font, font_size=max(8, fs2 * 0.30),
+        fill=c["secondary"], letter_spacing=2,
+    ))
 
 
 # ─── Style: Block ─────────────────────────────────────────────────────────────
@@ -462,10 +633,22 @@ def draw_block(dwg: svgwrite.Drawing, c: dict, w: float, h: float,
     dwg.add(dwg.rect((0, split_y + stripe_h), (w, 2), fill=c["secondary"],
                      opacity=0.55))
 
-    # Faint inner border on the primary bar
+    # Double inner border on the primary bar
     dwg.add(dwg.rect((10, 10), (w - 20, split_y - 20),
                      fill="none", stroke=c["background"],
-                     stroke_width=1, stroke_opacity=0.35))
+                     stroke_width=1.2, stroke_opacity=0.4))
+    dwg.add(dwg.rect((18, 18), (w - 36, split_y - 36),
+                     fill="none", stroke=c["accent"],
+                     stroke_width=0.8, stroke_opacity=0.4))
+
+    # Corner brackets in the primary bar corners
+    bl = h * 0.10
+    for x, y, sx, sy in ((10, 10, 1, 1), (w - 10, 10, -1, 1),
+                          (10, split_y - 10, 1, -1),
+                          (w - 10, split_y - 10, -1, -1)):
+        for el in _corner_bracket(dwg, x, y, bl, sx, sy,
+                                   c["accent"], 2.5):
+            dwg.add(el)
 
     # Band name reversed out of the bar
     dwg.add(dwg.text(
@@ -478,17 +661,44 @@ def draw_block(dwg: svgwrite.Drawing, c: dict, w: float, h: float,
 
     # Diamond bullets flanking the band name
     diamond_y = split_y / 2
-    for dx in (w * 0.06, w * 0.94):
-        dwg.add(_diamond(dwg, dx, diamond_y, 6, c["accent"]))
+    for dx in (w * 0.07, w * 0.93):
+        dwg.add(_diamond(dwg, dx, diamond_y, 7, c["accent"]))
+        # tiny mirror dot inside the bar margin
+        dwg.add(dwg.circle(center=(dx + (1 if dx < w / 2 else -1) * 18,
+                                    diamond_y), r=2.5,
+                           fill=c["accent"], fill_opacity=0.6))
 
-    # Sub-label in the lower section, with end ornaments
-    label_y = split_y + stripe_h + (h - split_y - stripe_h) / 2 + 2
+    # EQ-bar pattern in the lower section — graphic anchor below the wordmark
+    bar_count = 11
+    bar_zone_w = w * 0.30
+    bar_zone_x = w / 2 - bar_zone_w / 2
+    bar_w_each = bar_zone_w / (bar_count * 1.7)
+    bar_gap = (bar_zone_w - bar_count * bar_w_each) / (bar_count - 1)
+    bar_max_h = (h - split_y - stripe_h) * 0.55
+    bar_base_y = h - (h - split_y - stripe_h) * 0.18
+    heights = [0.55, 0.75, 0.90, 1.0, 0.92, 0.78, 0.92, 1.0, 0.90, 0.75, 0.55]
+    for i in range(bar_count):
+        bx = bar_zone_x + i * (bar_w_each + bar_gap)
+        bh = bar_max_h * heights[i]
+        dwg.add(dwg.rect((bx, bar_base_y - bh), (bar_w_each, bh),
+                         fill=c["primary"], rx=1))
+
+    # EST · 2026 mark to the LEFT of the EQ cluster, MUSIC mark to the RIGHT
+    label_y = bar_base_y - bar_max_h * 0.50
+    label_size = font_size * 0.30
     dwg.add(dwg.text(
-        "★ EST · 2026 ★ MUSIC",
-        insert=(w / 2, label_y),
-        text_anchor="middle", dominant_baseline="middle",
-        font_family=font, font_size=font_size * 0.30,
-        fill=c["primary"], letter_spacing=font_size * 0.10,
+        "★ EST · 2026",
+        insert=(bar_zone_x - 24, label_y),
+        text_anchor="end", dominant_baseline="middle",
+        font_family=font, font_size=label_size,
+        fill=c["primary"], letter_spacing=2,
+    ))
+    dwg.add(dwg.text(
+        "MUSIC ★",
+        insert=(bar_zone_x + bar_zone_w + 24, label_y),
+        text_anchor="start", dominant_baseline="middle",
+        font_family=font, font_size=label_size, font_weight="bold",
+        fill=c["primary"], letter_spacing=2,
     ))
 
 
